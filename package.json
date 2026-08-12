@@ -1,0 +1,63 @@
+{
+    "name": "@software-hardware-integration-lab/vitest-integration-test-harness",
+    "version": "0.0.1-alpha1",
+    "description": "Test harness built on top of vitest for creating integration tests with predictable setup and teardown behavior",
+    "main": "bin/src/index.js",
+    "type": "module",
+    "scripts": {
+        "build:Dev": "tsc",
+        "prebuild:Prod": "tsc -p prod.tsconfig.json --emitDeclarationOnly false",
+        "build:Prod": "tsc -p prod.tsconfig.json --removeComments false",
+        "test": "vitest run",
+        "test:Coverage": "vitest run --coverage",
+        "test:Watch": "vitest",
+        "lint": "eslint --max-warnings 0"
+    },
+    "keywords": [
+        "Object ID",
+        "Azure",
+        "Entra",
+        "Entra ID",
+        "Windows",
+        "Cloud",
+        "UUID",
+        "Converter",
+        "Library",
+        "Easy",
+        "Minimal",
+        "Security Identifier",
+        "SID",
+        "GUID"
+    ],
+    "packageManager": "npm@12.0.1",
+    "devEngines": {
+        "runtime": {
+            "name": "node",
+            "version": ">=24.18.0",
+            "onFail": "error"
+        },
+        "packageManager": {
+            "name": "npm",
+            "onFail": "error"
+        }
+    },
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/Software-Hardware-Integration-Lab/vitest-integration-test-harness.git"
+    },
+    "bugs": {
+        "url": "https://github.com/Software-Hardware-Integration-Lab/vitest-integration-test-harness/issues"
+    },
+    "author": "Michael Howard <michael_howard@shi.com>",
+    "license": "MIT",
+    "peerDependencies": {
+        "vitest": ">=4.1.10 <5"
+    },
+    "devDependencies": {
+        "@software-hardware-integration-lab/development-utilities": "~3.0.0",
+        "@types/node": "~26.1.2",
+        "@vitest/coverage-v8": "~4.1.10",
+        "typescript": "~6.0.3",
+        "vitest": "~4.1.10"
+    }
+}
