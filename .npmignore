@@ -1,0 +1,10 @@
+# Project files, only the built runtime files should be published
+/src
+/test
+bin/test
+**/vitest.config.{d.ts,js,ts}
+.vscode
+.github
+*.code-workspace
+*tsconfig*.json
+*eslint*

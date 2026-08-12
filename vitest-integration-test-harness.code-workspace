@@ -1,0 +1,81 @@
+{
+    "folders": [
+        {
+            "name": "Vitest Integration Test Harness",
+            "path": "."
+        }
+    ],
+    "settings": {
+        "window.border": "purple",
+        "files.exclude": {
+            "node_modules": true
+        },
+        "files.associations": {
+            "*.tsconfig.json": "jsonc",
+            "coverage.tsconfig.json": "jsonc",
+            "prod.tsconfig.json": "jsonc"
+        },
+        "cSpell.words": [
+            "camelcase",
+            "endregion",
+            "Entra",
+            "fluentui",
+            "Intune",
+            "keyvault",
+            "MDVM",
+            "ODATA",
+            "reduxjs",
+            "SCIM",
+            "SSPR",
+            "vitest",
+            "Writeback"
+        ],
+        "cSpell.enabledFileTypes": {
+            "*": true,
+        },
+        "editor.formatOnSave": true,
+        "editor.bracketPairColorization.enabled": true,
+        "editor.stickyScroll.enabled": true,
+        "editor.detectIndentation": false,
+        "editor.tabSize": 4,
+        "js/ts.format.insertSpaceAfterOpeningAndBeforeClosingTemplateStringBraces": true,
+        "js/ts.format.insertSpaceAfterOpeningAndBeforeClosingNonemptyParenthesis": false,
+        "js/ts.format.insertSpaceAfterOpeningAndBeforeClosingJsxExpressionBraces": true,
+        "js/ts.format.insertSpaceBeforeFunctionParenthesis": false,
+        "search.exclude": {
+            "**/*.js": true,
+            "**/*.js.map": true
+        },
+        "files.insertFinalNewline": true,
+        "files.trimFinalNewlines": true,
+        "yaml.format.singleQuote": true,
+        "powershell.codeFormatting.useConstantStrings": true,
+        "js/ts.tsdk.path": "node_modules/typescript/lib",
+        "eslint.rules.customizations": [
+            {
+                "rule": "*",
+                "severity": "warn"
+            }
+        ],
+        "todo-tree.general.tags": [
+            "BUG",
+            "HACK",
+            "FIXME",
+            "TODO",
+            "XXX",
+            "[ ]",
+            "[x]",
+            "* @todo"
+        ],
+    },
+    "extensions": {
+        "recommendations": [
+            "streetsidesoftware.code-spell-checker",
+            "dbaeumer.vscode-eslint",
+            "gruntfuggly.todo-tree",
+            "PKief.material-icon-theme",
+            "SocketSecurity.vscode-socket-security",
+            "MS-CST-E.vscode-devskim"
+        ]
+    }
+}
