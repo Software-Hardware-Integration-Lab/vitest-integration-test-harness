@@ -14,20 +14,13 @@
         "lint": "eslint --max-warnings 0"
     },
     "keywords": [
-        "Object ID",
-        "Azure",
-        "Entra",
-        "Entra ID",
-        "Windows",
-        "Cloud",
-        "UUID",
-        "Converter",
-        "Library",
-        "Easy",
-        "Minimal",
-        "Security Identifier",
-        "SID",
-        "GUID"
+        "vitest",
+        "integration",
+        "integration tests",
+        "test harness",
+        "testing",
+        "setup",
+        "teardown"
     ],
     "packageManager": "npm@12.0.1",
     "devEngines": {
