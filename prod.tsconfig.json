@@ -3,9 +3,9 @@
     "compilerOptions": {
         /* Visit https://aka.ms/tsconfig to read more about this file */
         "sourceMap": false, /* Create source map files for emitted JavaScript files. */
-        "removeComments": true, /* Disable emitting comments. */
+        "removeComments": false, /* Emit comments to help consumers reason about the package. */
         "declaration": true, /* Generate .d.ts files from TypeScript and JavaScript files in your project. */
-        "emitDeclarationOnly": true /* Only output d.ts files and not JavaScript files. */
+        "emitDeclarationOnly": false /* Emit JavaScript output along with .d.ts files. */
     },
     // Inherit all of the standard build configurations
     "extends": "./tsconfig.json"

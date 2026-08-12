@@ -6,8 +6,8 @@
     "type": "module",
     "scripts": {
         "build:Dev": "tsc",
-        "prebuild:Prod": "tsc -p prod.tsconfig.json --emitDeclarationOnly false",
-        "build:Prod": "tsc -p prod.tsconfig.json --removeComments false",
+        "build:Prod": "tsc -p prod.tsconfig.json",
+        "prepack": "npm run build:Prod",
         "test": "vitest run",
         "test:Coverage": "vitest run --coverage",
         "test:Watch": "vitest",
