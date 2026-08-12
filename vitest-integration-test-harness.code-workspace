@@ -1,7 +1,7 @@
 {
     "folders": [
         {
-            "name": "Object ID Converter",
+            "name": "Vitest Integration Test Harness",
             "path": "."
         }
     ],
@@ -50,7 +50,7 @@
         "files.trimFinalNewlines": true,
         "yaml.format.singleQuote": true,
         "powershell.codeFormatting.useConstantStrings": true,
-        "js/ts.tsdk.path": "node_modules\\typescript\\lib",
+        "js/ts.tsdk.path": "node_modules/typescript/lib",
         "eslint.rules.customizations": [
             {
                 "rule": "*",
