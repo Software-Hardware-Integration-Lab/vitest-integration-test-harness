@@ -253,6 +253,37 @@ void describe('DiagnosticsRecorder', () => {
         });
     });
 
+    it('continues reporting when a diagnostic reporter fails', () => {
+        const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => { /* Silence expected diagnostic output */ });
+
+        const reporterError = new Error('reporter unavailable');
+
+        const failingReporter = { 'report': vi.fn(() => { throw reporterError; }) };
+
+        const succeedingReporter = { 'report': vi.fn() };
+
+        const recorder = new DiagnosticsRecorder('unit-test');
+
+        recorder.addReporter(failingReporter);
+
+        recorder.addReporter(succeedingReporter);
+
+        const context = {
+            'task': {
+                'result': { 'errors': [{ 'message': 'expected failure' }] }
+            }
+        } as unknown as TestContext;
+
+        expect(() => { recorder.flush(context); }).not.toThrow();
+
+        expect(succeedingReporter.report).toHaveBeenCalledOnce();
+
+        expect(consoleSpy).toHaveBeenCalledWith(
+            '\n[Integration Test Diagnostic Reporter Failure] unit-test',
+            reporterError
+        );
+    });
+
     it('redacts nested built-in and suite-specific sensitive diagnostic values before emission', () => {
         /** Spy replacing `console.error` so the expected diagnostic output does not reach the test runner. */
         vi.spyOn(console, 'error').mockImplementation(() => { /* Silence expected diagnostic output */ });

@@ -161,7 +161,11 @@ export default class DiagnosticsRecorder {
         console.error(`\n[Integration Test Failure Diagnostics] ${ this.#testName }`, payload);
 
         for (const reporter of this.#reporters) {
-            reporter.report(payload);
+            try {
+                reporter.report(payload);
+            } catch (error) {
+                console.error(`\n[Integration Test Diagnostic Reporter Failure] ${ this.#testName }`, error);
+            }
         }
     }
 }
