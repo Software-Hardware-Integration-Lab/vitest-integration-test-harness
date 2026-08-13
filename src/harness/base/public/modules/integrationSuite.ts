@@ -5,6 +5,12 @@ import type IntegrationSuiteOptions from '../interfaces/integrationSuiteOptions.
 import type IntegrationTestFixtures from '../interfaces/integrationTestFixtures.js';
 import { integrationTest } from './integrationTestLifecycle.js';
 
+function toError(error: unknown): Error {
+    return error instanceof Error
+        ? error
+        : new Error(String(error), { 'cause': error });
+}
+
 /**
  * Creates a test API with paired file-scoped setup and cleanup. The setup callback must return cleanup for the
  * shared state it creates; additional shared mutations can be registered immediately through `resources`.
@@ -18,11 +24,18 @@ export function integrationSuite(options: IntegrationSuiteOptions): TestAPI<Inte
         };
     }>({
         'suiteLifecycle': [
-            // eslint-disable-next-line no-empty-pattern -- The file-scoped lifecycle has no fixture dependencies.
-            async ({ }, use): Promise<void> => {
+            async ({ environment }, use): Promise<void> => {
+                if (!environment.ready) {
+                    await use(void 0);
+
+                    return;
+                }
+
                 const resources = new ResourceTracker(options.name);
 
                 const context: IntegrationSuiteContext = { resources };
+
+                let lifecycleError: unknown;
 
                 try {
                     const cleanup = await options.setup(context);
@@ -30,8 +43,28 @@ export function integrationSuite(options: IntegrationSuiteOptions): TestAPI<Inte
                     resources.track(options.name, cleanup);
 
                     await use(void 0);
-                } finally {
+                } catch (error) {
+                    lifecycleError = error;
+                }
+
+                try {
                     await resources.cleanupAll();
+                } catch (cleanupError) {
+                    if (lifecycleError !== void 0) {
+                        const primaryError = toError(lifecycleError);
+
+                        throw new AggregateError(
+                            [primaryError, cleanupError],
+                            `Integration suite '${ options.name }' failed and cleanup also failed.`,
+                            { 'cause': cleanupError }
+                        );
+                    }
+
+                    throw cleanupError;
+                }
+
+                if (lifecycleError !== void 0) {
+                    throw toError(lifecycleError);
                 }
             },
             {

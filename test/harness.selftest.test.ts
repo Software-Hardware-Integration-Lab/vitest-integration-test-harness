@@ -411,6 +411,41 @@ void describe('DiagnosticsRecorder', () => {
         }));
     });
 
+    it('does not redact property names that only contain built-in redaction names', () => {
+        vi.spyOn(console, 'error').mockImplementation(() => { /* Silence expected diagnostic output */ });
+
+        let capturedPayload: FailureDiagnosticsPayload | undefined;
+
+        const recorder = new DiagnosticsRecorder('unit-test');
+
+        recorder.addReporter({
+            'report': (payload: FailureDiagnosticsPayload): void => {
+                capturedPayload = payload;
+            }
+        });
+
+        recorder.record('response', {
+            'tokenizerVersion': 'v2',
+            'secretaryName': 'Morgan',
+            'monkey': 'tool',
+            'authorization': 'Bearer real-token'
+        });
+
+        recorder.flush({ 'task': { 'result': { 'errors': [] } } } as unknown as TestContext);
+
+        expect(capturedPayload?.recordedContext).toEqual([
+            {
+                'label': 'response',
+                'detail': {
+                    'tokenizerVersion': 'v2',
+                    'secretaryName': 'Morgan',
+                    'monkey': 'tool',
+                    'authorization': '[REDACTED]'
+                }
+            }
+        ]);
+    });
+
     it('applies rules added after recording and does not invoke diagnostic accessors', () => {
         const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => { /* Silence expected diagnostic output */ });
 
@@ -680,6 +715,8 @@ void describe('Failure Snapshot', () => {
         expect(output).toContain('1 skipped');
 
         expect(output).not.toContain('unready environment allowed the test body to run');
+
+        expect(output).not.toContain('unready suite setup ran');
     });
 
     it('runs file-scoped readiness once for every test in a fixture file', () => {
@@ -715,6 +752,18 @@ void describe('Failure Snapshot', () => {
         expect(pairedCleanupIndex).toBeGreaterThan(testIndex);
 
         expect(additionalCleanupIndex).toBeGreaterThan(pairedCleanupIndex);
+    });
+
+    it('preserves suite setup and cleanup failures together', () => {
+        const fixturePath = 'test/fixtures/suite-setup-and-cleanup-failure.fixture.ts';
+
+        const { status, output } = runFixtureAndCaptureOutput(fixturePath);
+
+        expect(status).not.toBe(0);
+
+        expect(output).toContain('suite setup failed');
+
+        expect(output).toContain('suite cleanup failed');
     });
 
     it('emits diagnostics when a test and its cleanup both fail', () => {

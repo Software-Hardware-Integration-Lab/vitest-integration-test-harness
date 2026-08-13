@@ -26,16 +26,16 @@ function resolveRetryOptions(options: RetryOptions): ResolvedRetryOptions {
 
     const jitterRatio = options.jitterRatio ?? 0;
 
-    if (!Number.isFinite(options.timeoutMs) || options.timeoutMs <= 0 || options.timeoutMs > maximumTimerDelayMs) {
-        throw new RangeError(`timeoutMs must be a finite number from 1 through ${ maximumTimerDelayMs }.`);
+    if (!Number.isInteger(options.timeoutMs) || options.timeoutMs <= 0 || options.timeoutMs > maximumTimerDelayMs) {
+        throw new RangeError(`timeoutMs must be an integer from 1 through ${ maximumTimerDelayMs }.`);
     }
 
-    if (!Number.isFinite(initialIntervalMs) || initialIntervalMs < 0 || initialIntervalMs > maximumTimerDelayMs) {
-        throw new RangeError(`initialIntervalMs must be a finite number from 0 through ${ maximumTimerDelayMs }.`);
+    if (!Number.isInteger(initialIntervalMs) || initialIntervalMs < 0 || initialIntervalMs > maximumTimerDelayMs) {
+        throw new RangeError(`initialIntervalMs must be an integer from 0 through ${ maximumTimerDelayMs }.`);
     }
 
-    if (!Number.isFinite(maxIntervalMs) || maxIntervalMs < initialIntervalMs || maxIntervalMs > maximumTimerDelayMs) {
-        throw new RangeError(`maxIntervalMs must be a finite number from ${ initialIntervalMs } through ${ maximumTimerDelayMs }.`);
+    if (!Number.isInteger(maxIntervalMs) || maxIntervalMs < initialIntervalMs || maxIntervalMs > maximumTimerDelayMs) {
+        throw new RangeError(`maxIntervalMs must be an integer from ${ initialIntervalMs } through ${ maximumTimerDelayMs }.`);
     }
 
     if (!Number.isFinite(backoffMultiplier) || backoffMultiplier < 1) {

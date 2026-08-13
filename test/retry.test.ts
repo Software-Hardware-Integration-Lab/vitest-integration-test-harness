@@ -242,6 +242,25 @@ void describe('retry utilities', () => {
     });
 
     it.each([
+        [
+            'fractional timeoutMs',
+            { 'timeoutMs': 1.5 }
+        ],
+        [
+            'fractional initialIntervalMs',
+            {
+                'timeoutMs': 1,
+                'initialIntervalMs': 0.5
+            }
+        ],
+        [
+            'fractional maxIntervalMs',
+            {
+                'timeoutMs': 1,
+                'initialIntervalMs': 0,
+                'maxIntervalMs': 0.5
+            }
+        ],
         ['zero timeoutMs', { 'timeoutMs': 0 }],
         ['timeoutMs', { 'timeoutMs': 2_147_483_648 }],
         [

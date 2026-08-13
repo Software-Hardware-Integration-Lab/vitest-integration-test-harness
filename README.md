@@ -68,14 +68,17 @@ test('updates the shared widget', async () => {
 
 For a file that uses this API, the lifecycle is:
 
-1. `setup` runs once before the file's tests.
-2. Its returned cleanup is immediately registered with the suite's `ResourceTracker`.
-3. Each test runs with the normal `integrationTest` fixtures, including its own per-test `resources` tracker.
-4. After every test in the file finishes, including when a test fails, the suite tracker runs cleanup in LIFO order.
+1. The file-scoped `environment` fixture evaluates readiness. If it is unready, `setup` does not run and the normal
+  readiness gate skips the file's tests.
+2. `setup` runs once before the file's tests when the environment is ready.
+3. Its returned cleanup is immediately registered with the suite's `ResourceTracker`.
+4. Each test runs with the normal `integrationTest` fixtures, including its own per-test `resources` tracker.
+5. After every test in the file finishes, including when a test fails, the suite tracker runs cleanup in LIFO order.
 
 The returned cleanup runs before callbacks registered with `resources.track(...)` during setup, because it is registered
 last. A failed suite cleanup does not prevent later callbacks from running; failures are aggregated in
-`ResourceCleanupError`.
+`ResourceCleanupError`. When setup or a test and suite cleanup both fail, the harness throws an `AggregateError` that
+retains both failures.
 
 `integrationSuite` is for state shared by every test in one file. Use the `resources` fixture supplied to an individual
 test for state created or changed only by that test. Do not construct `integrationSuite` inside `describe`; Vitest
@@ -140,8 +143,8 @@ opt-in.
 `timeoutMs` is required. The remaining options default to `initialIntervalMs: 100`,
 `maxIntervalMs: initialIntervalMs`, and `backoffMultiplier: 1`, giving a constant 100 ms retry interval by default.
 Set `backoffMultiplier` above `1` and increase `maxIntervalMs` to use bounded exponential backoff. All interval values
-must be finite numbers from `1` through `2_147_483_647` milliseconds for `timeoutMs` and from `0` through
-`2_147_483_647` milliseconds for intervals; `maxIntervalMs` cannot be less than `initialIntervalMs`; and
+must be integer milliseconds from `1` through `2_147_483_647` for `timeoutMs` and from `0` through
+`2_147_483_647` for intervals; `maxIntervalMs` cannot be less than `initialIntervalMs`; and
 `backoffMultiplier` must be at least `1`. An aborted `signal` stops an in-progress operation or pending retry delay.
 The operation and `check` callbacks receive that signal, allowing compatible I/O such as `fetch` to terminate
 underlying work. Use `shouldRetry(error, attempt)` to reject permanent failures immediately; it defaults to retrying

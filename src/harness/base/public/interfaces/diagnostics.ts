@@ -4,9 +4,10 @@ import type DiagnosticReporter from './diagnosticReporter.js';
 /** Records contextual data that the harness emits only if the current integration test fails. */
 export default interface Diagnostics {
     /**
-     * Records a labeled, serializable piece of diagnostic context for the current test.
+     * Records a labeled diagnostic value for the current test. Arrays and plain objects are preserved recursively;
+     * other object types are represented safely when diagnostics are emitted.
      * @param label Short label identifying the recorded context.
-     * @param detail Serializable detail to emit if the test fails.
+     * @param detail Detail to emit if the test fails.
      */
     record(label: string, detail: unknown): void;
 

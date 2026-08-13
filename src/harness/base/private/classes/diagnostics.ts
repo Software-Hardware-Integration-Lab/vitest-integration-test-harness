@@ -10,13 +10,13 @@ const redactedValue = '[REDACTED]';
 
 /** Sensitive property names commonly found in integration-test request and configuration data. */
 const defaultRedactionRules: readonly RegExp[] = [
-    /authorization/iu,
-    /api[-_]?key/iu,
-    /connection[-_]?string/iu,
-    /password/iu,
-    /secret/iu,
-    /token/iu,
-    /credential/iu
+    /^authorization$/iu,
+    /^api[-_]?key$/iu,
+    /^connection[-_]?string$/iu,
+    /^password$/iu,
+    /^secret$/iu,
+    /^token$/iu,
+    /^credential$/iu
 ];
 
 /**
