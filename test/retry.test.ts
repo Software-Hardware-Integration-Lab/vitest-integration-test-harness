@@ -141,15 +141,17 @@ void describe('retry utilities', () => {
     it('cancels while waiting for the next retry attempt', async () => {
         const controller = new AbortController();
 
+        const reason = new Error('caller canceled retry');
+
         const pendingRetry = retry(() => { throw new Error('transient failure'); }, {
             'timeoutMs': 1_000,
             'initialIntervalMs': 1_000,
             'signal': controller.signal
         });
 
-        controller.abort();
+        controller.abort(reason);
 
-        await expect(pendingRetry).rejects.toMatchObject({ 'name': 'AbortError' });
+        await expect(pendingRetry).rejects.toBe(reason);
     });
 
     it('times out an operation that remains in progress past the deadline', async () => {
@@ -163,6 +165,8 @@ void describe('retry utilities', () => {
     it('cancels an in-progress operation and passes its signal to the operation', async () => {
         const controller = new AbortController();
 
+        const reason = new Error('caller canceled retry');
+
         let operationSignal: AbortSignal | undefined;
 
         const pendingRetry = retry((signal) => {
@@ -174,9 +178,9 @@ void describe('retry utilities', () => {
             'signal': controller.signal
         });
 
-        controller.abort(new Error('caller canceled retry'));
+        controller.abort(reason);
 
-        await expect(pendingRetry).rejects.toThrow('caller canceled retry');
+        await expect(pendingRetry).rejects.toBe(reason);
 
         expect(operationSignal?.aborted).toBe(true);
     });
@@ -188,6 +192,36 @@ void describe('retry utilities', () => {
             'timeoutMs': 100,
             'shouldRetry': () => false
         })).rejects.toBe(permanentError);
+    });
+
+    it('uses an AbortError when the caller aborts without a reason', async () => {
+        const controller = new AbortController();
+
+        controller.abort();
+
+        await expect(retry(() => 'unused', {
+            'timeoutMs': 100,
+            'signal': controller.signal
+        })).rejects.toMatchObject({ 'name': 'AbortError' });
+    });
+
+    it.each([
+        [
+            'backoffMultiplier',
+            {
+                'timeoutMs': 1,
+                'backoffMultiplier': 0
+            }
+        ],
+        [
+            'jitterRatio',
+            {
+                'timeoutMs': 1,
+                'jitterRatio': -0.1
+            }
+        ]
+    ])('rejects an invalid %s value', async (_optionName, options) => {
+        await expect(retry(() => 'unused', options)).rejects.toBeInstanceOf(RangeError);
     });
 
     it('retains the final mismatched poll value in the timeout error', async () => {
@@ -208,6 +242,7 @@ void describe('retry utilities', () => {
     });
 
     it.each([
+        ['zero timeoutMs', { 'timeoutMs': 0 }],
         ['timeoutMs', { 'timeoutMs': 2_147_483_648 }],
         [
             'initialIntervalMs',

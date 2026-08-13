@@ -1,11 +1,51 @@
 import { type TestContext, afterEach, describe, expect, it, vi } from 'vitest';
 import DiagnosticsRecorder from '../src/harness/base/private/classes/diagnostics.js';
 import type FailureDiagnosticsPayload from '../src/harness/base/public/interfaces/failureDiagnosticsPayload.js';
+import type EnvironmentReadiness from '../src/harness/base/public/interfaces/environmentReadiness.js';
 import { evaluateReadiness } from '../src/harness/base/public/modules/environment.js';
 import ResourceCleanupError from '../src/harness/base/public/errors/resourceCleanupError.js';
 import ResourceTracker from '../src/harness/base/public/classes/resourceTracker.js';
 import { integrationTest } from '../src/harness/base/public/modules/integrationTestLifecycle.js';
+import { integrationSuite } from '../src/harness/base/public/modules/integrationSuite.js';
 import { spawnSync, type SpawnSyncReturns } from 'node:child_process';
+
+const suiteLifecycleOrder: string[] = [];
+
+const suiteTest = integrationSuite({
+    'name': 'in-process suite lifecycle',
+    'setup': ({ resources }): () => void => {
+        suiteLifecycleOrder.push('setup');
+
+        resources.track('additional suite state', () => { suiteLifecycleOrder.push('additional cleanup'); });
+
+        return () => { suiteLifecycleOrder.push('paired cleanup'); };
+    }
+});
+
+suiteTest('runs suite setup before the test body', () => {
+    expect(suiteLifecycleOrder).toEqual(['setup']);
+});
+
+const unreadyIntegrationTest = integrationTest.extend<{
+    '$file': {
+        'environment': EnvironmentReadiness;
+    };
+}>({
+    'environment': [
+        // eslint-disable-next-line no-empty-pattern -- Vitest fixture functions require an object-destructured context.
+        async ({ }, use): Promise<void> => {
+            await use({
+                'ready': false,
+                'reason': 'fixture readiness failed'
+            });
+        },
+        { 'scope': 'file' }
+    ]
+});
+
+unreadyIntegrationTest('does not execute an unready integration test', () => {
+    expect.unreachable('The readiness gate should skip this test.');
+});
 
 void describe('evaluateReadiness', () => {
     it('reports ready when every check passes', async () => {
@@ -150,6 +190,25 @@ void describe('ResourceTracker', () => {
         ]);
     });
 
+    it('formats non-Error cleanup failures and multiple cleanup actions', () => {
+        const error = new ResourceCleanupError([
+            {
+                'description': 'first resource',
+                'error': 'cleanup rejected'
+            },
+            {
+                'description': 'second resource',
+                'error': 500
+            }
+        ], 'unit-test');
+
+        expect(error.message).toContain('2 resource cleanup actions failed');
+
+        expect(error.message).toContain('first resource: cleanup rejected');
+
+        expect(error.message).toContain('second resource: 500');
+    });
+
     it('exposes descriptions of resources still tracked', () => {
         /** Tracker under test, scoped to a fake test name since this exercises the class directly. */
         const tracker = new ResourceTracker('unit-test');
@@ -216,6 +275,20 @@ void describe('DiagnosticsRecorder', () => {
         const [, payload] = consoleSpy.mock.calls[0] as [string, FailureDiagnosticsPayload];
 
         expect(payload.failureMessages).toEqual(['expected failure']);
+    });
+
+    it('emits an empty failure message list when Vitest reports no errors', () => {
+        vi.spyOn(console, 'error').mockImplementation(() => { /* Silence expected diagnostic output */ });
+
+        const reporter = { 'report': vi.fn() };
+
+        const recorder = new DiagnosticsRecorder('unit-test');
+
+        recorder.addReporter(reporter);
+
+        recorder.flush({ 'task': { } } as unknown as TestContext);
+
+        expect(reporter.report).toHaveBeenCalledWith(expect.objectContaining({ 'failureMessages': [] }));
     });
 
     it('passes the captured failure payload to registered reporters', () => {
@@ -375,6 +448,66 @@ void describe('DiagnosticsRecorder', () => {
                 }
             ]
         }));
+    });
+
+    it('represents Error, non-plain, array, and circular diagnostic values safely', () => {
+        vi.spyOn(console, 'error').mockImplementation(() => { /* Silence expected diagnostic output */ });
+
+        let capturedPayload: FailureDiagnosticsPayload | undefined;
+
+        const reporter = {
+            'report': (payload: FailureDiagnosticsPayload): void => {
+                capturedPayload = payload;
+            }
+        };
+
+        const recorder = new DiagnosticsRecorder('unit-test');
+
+        const detail: {
+            'error': Error;
+            'date': Date;
+            'values': unknown[];
+            'self'?: unknown;
+        } = {
+            'error': new Error('request failed'),
+            'date': new Date(),
+            'values': ['value']
+        };
+
+        detail.self = detail;
+
+        recorder.record('response', detail);
+
+        recorder.addReporter(reporter);
+
+        recorder.flush({ 'task': { 'result': { 'errors': [] } } } as unknown as TestContext);
+
+        expect(capturedPayload).toBeDefined();
+
+        const recordedEntry = capturedPayload!.recordedContext[0]!;
+
+        expect(recordedEntry.label).toBe('response');
+
+        const sanitizedDetail = recordedEntry.detail as {
+            'error': {
+                'name': string;
+                'message': string;
+                'stack': string | undefined;
+            };
+            'date': string;
+            'values': unknown[];
+            'self': unknown;
+        };
+
+        expect(sanitizedDetail.error.name).toBe('Error');
+
+        expect(sanitizedDetail.error.message).toBe('request failed');
+
+        expect(sanitizedDetail.date).toBe('[Non-plain diagnostic value]');
+
+        expect(sanitizedDetail.values).toEqual(['value']);
+
+        expect(sanitizedDetail.self).toBe(sanitizedDetail);
     });
 });
 
@@ -558,6 +691,30 @@ void describe('Failure Snapshot', () => {
         expect(status).toBe(0);
 
         expect(output).toContain('2 passed');
+    });
+
+    it('runs paired suite cleanup after all tests in LIFO order', () => {
+        const fixturePath = 'test/fixtures/suite-lifecycle.fixture.ts';
+
+        const { status, output } = runFixtureAndCaptureOutput(fixturePath);
+
+        expect(status).not.toBe(0);
+
+        const setupIndex = output.indexOf('[suite lifecycle] setup');
+
+        const testIndex = output.indexOf('[suite lifecycle] test');
+
+        const pairedCleanupIndex = output.indexOf('[suite lifecycle] paired cleanup');
+
+        const additionalCleanupIndex = output.indexOf('[suite lifecycle] additional cleanup');
+
+        expect(setupIndex).toBeGreaterThanOrEqual(0);
+
+        expect(testIndex).toBeGreaterThan(setupIndex);
+
+        expect(pairedCleanupIndex).toBeGreaterThan(testIndex);
+
+        expect(additionalCleanupIndex).toBeGreaterThan(pairedCleanupIndex);
     });
 
     it('emits diagnostics when a test and its cleanup both fail', () => {

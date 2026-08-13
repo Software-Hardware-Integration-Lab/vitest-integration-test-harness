@@ -26,8 +26,8 @@ function resolveRetryOptions(options: RetryOptions): ResolvedRetryOptions {
 
     const jitterRatio = options.jitterRatio ?? 0;
 
-    if (!Number.isFinite(options.timeoutMs) || options.timeoutMs < 0 || options.timeoutMs > maximumTimerDelayMs) {
-        throw new RangeError(`timeoutMs must be a finite number from 0 through ${ maximumTimerDelayMs }.`);
+    if (!Number.isFinite(options.timeoutMs) || options.timeoutMs <= 0 || options.timeoutMs > maximumTimerDelayMs) {
+        throw new RangeError(`timeoutMs must be a finite number from 1 through ${ maximumTimerDelayMs }.`);
     }
 
     if (!Number.isFinite(initialIntervalMs) || initialIntervalMs < 0 || initialIntervalMs > maximumTimerDelayMs) {
@@ -101,6 +101,18 @@ function createAbortPromise(signal: AbortSignal): {
     };
 }
 
+async function sleepWithSignal(delayMs: number, signal: AbortSignal | undefined): Promise<void> {
+    try {
+        await sleep(delayMs, void 0, { signal });
+    } catch (error) {
+        if (signal?.aborted) {
+            throw abortReason(signal);
+        }
+
+        throw error;
+    }
+}
+
 /**
  * Retries the provided operation until it succeeds or the specified timeout is reached. The retry behavior can be configured using the provided options.
  * @template T The type of the value returned by the operation.
@@ -129,7 +141,7 @@ export async function retry<T>(
 
     for (; ;) {
         if (resolvedOptions.signal?.aborted) {
-            throw resolvedOptions.signal.reason;
+            throw abortReason(resolvedOptions.signal);
         }
 
         if (remainingMs(deadline) <= 0) {
@@ -186,7 +198,7 @@ export async function retry<T>(
 
         const jitteredDelayMs = addJitter(delayMs, resolvedOptions.jitterRatio);
 
-        await sleep(Math.min(jitteredDelayMs, remaining), void 0, { 'signal': resolvedOptions.signal });
+        await sleepWithSignal(Math.min(jitteredDelayMs, remaining), resolvedOptions.signal);
 
         delayMs = Math.min(delayMs * resolvedOptions.backoffMultiplier, resolvedOptions.maxIntervalMs);
     }

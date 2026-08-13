@@ -16,6 +16,10 @@ export type { default as FailureDiagnosticsPayload } from './harness/base/public
 
 export type { default as IntegrationTestFixtures } from './harness/base/public/interfaces/integrationTestFixtures.js';
 
+export type { default as IntegrationSuiteContext } from './harness/base/public/interfaces/integrationSuiteContext.js';
+
+export type { default as IntegrationSuiteOptions } from './harness/base/public/interfaces/integrationSuiteOptions.js';
+
 export type { default as ReadinessCheck } from './harness/base/public/interfaces/readinessCheck.js';
 
 export type { PollResult } from './utilities/public/interfaces/pollResult.js';
@@ -23,6 +27,8 @@ export type { PollResult } from './utilities/public/interfaces/pollResult.js';
 export type { RetryOptions } from './utilities/public/interfaces/retryOptions.js';
 
 export { integrationTest } from './harness/base/public/modules/integrationTestLifecycle.js';
+
+export { integrationSuite } from './harness/base/public/modules/integrationSuite.js';
 
 export { default as ResourceCleanupError } from './harness/base/public/errors/resourceCleanupError.js';
 

@@ -32,6 +32,55 @@ integrationTest('creates and reads a widget', async ({ resources }) => {
 Register cleanup immediately after creating or mutating a resource. Cleanup actions can be synchronous or
 asynchronous and should tolerate a resource that has already been removed.
 
+## File-Scoped Lifecycles
+
+Use `integrationSuite` when multiple tests in one file share state that must be prepared once and restored once after
+the file completes. It returns a Vitest test API; define it at the top level of the test file, then use the returned
+`test` for every test that depends on the shared state.
+
+```ts
+import { expect } from 'vitest';
+import { integrationSuite } from '@software-hardware-integration-lab/vitest-integration-test-harness';
+
+const test = integrationSuite({
+  'name': 'widget suite state',
+  'setup': async ({ resources }) => {
+    const widget = await createWidget('shared-widget');
+
+    // Track mutations made during setup as soon as they succeed.
+    resources.track(`Widget ${ widget.id }`, async () => { await deleteWidget(widget.id); });
+
+    // Returning cleanup is required and is registered before any test body runs.
+    return async () => {
+      await restoreWidgetDefaults(widget.id);
+    };
+  }
+});
+
+test('reads the shared widget', async () => {
+  expect(await getWidget('shared-widget')).toBeDefined();
+});
+
+test('updates the shared widget', async () => {
+  await updateWidget('shared-widget');
+});
+```
+
+For a file that uses this API, the lifecycle is:
+
+1. `setup` runs once before the file's tests.
+2. Its returned cleanup is immediately registered with the suite's `ResourceTracker`.
+3. Each test runs with the normal `integrationTest` fixtures, including its own per-test `resources` tracker.
+4. After every test in the file finishes, including when a test fails, the suite tracker runs cleanup in LIFO order.
+
+The returned cleanup runs before callbacks registered with `resources.track(...)` during setup, because it is registered
+last. A failed suite cleanup does not prevent later callbacks from running; failures are aggregated in
+`ResourceCleanupError`.
+
+`integrationSuite` is for state shared by every test in one file. Use the `resources` fixture supplied to an individual
+test for state created or changed only by that test. Do not construct `integrationSuite` inside `describe`; Vitest
+requires file-scoped fixtures to be declared at the test file's top level.
+
 ## Readiness Checks
 
 By default, every environment is considered ready. Extend the `environment` fixture when tests require credentials,
@@ -91,7 +140,8 @@ opt-in.
 `timeoutMs` is required. The remaining options default to `initialIntervalMs: 100`,
 `maxIntervalMs: initialIntervalMs`, and `backoffMultiplier: 1`, giving a constant 100 ms retry interval by default.
 Set `backoffMultiplier` above `1` and increase `maxIntervalMs` to use bounded exponential backoff. All interval values
-must be finite numbers from `0` through `2_147_483_647` milliseconds; `maxIntervalMs` cannot be less than `initialIntervalMs`; and
+must be finite numbers from `1` through `2_147_483_647` milliseconds for `timeoutMs` and from `0` through
+`2_147_483_647` milliseconds for intervals; `maxIntervalMs` cannot be less than `initialIntervalMs`; and
 `backoffMultiplier` must be at least `1`. An aborted `signal` stops an in-progress operation or pending retry delay.
 The operation and `check` callbacks receive that signal, allowing compatible I/O such as `fetch` to terminate
 underlying work. Use `shouldRetry(error, attempt)` to reject permanent failures immediately; it defaults to retrying
@@ -118,6 +168,7 @@ every error for backward compatibility.
 | Export | Kind | Purpose |
 | --- | --- | --- |
 | `integrationTest` | Function | Vitest test API with automatic resource cleanup, failure diagnostics, and readiness gating. |
+| `integrationSuite` | Function | Creates a test API with paired file-scoped setup and cleanup. |
 | `evaluateReadiness` | Function | Runs readiness checks in order and returns a result containing the first failure reason, if any. |
 | `retry` | Function | Repeats a signal-aware operation until it succeeds, times out, is cancelled, or `shouldRetry` rejects an error. |
 | `pollUntil` | Function | Uses `retry` to repeat a signal-aware check until its value satisfies a predicate, times out, is cancelled, or `shouldRetry` rejects an error. |
@@ -136,6 +187,8 @@ every error for backward compatibility.
 | `DiagnosticRedactionRule` | Type | A string or regular expression that identifies sensitive property names. |
 | `DiagnosticReporter` | Type | Receives the diagnostic payload for a failed test. |
 | `IntegrationTestFixtures` | Type | Fixtures supplied by `integrationTest`: environment, readiness gate, resources, and diagnostics. |
+| `IntegrationSuiteContext` | Type | File-scoped resources available during integration suite setup. |
+| `IntegrationSuiteOptions` | Type | Configures an integration suite's name and paired setup/cleanup. |
 
 `ResourceTracker` is available for custom fixture composition. Most suites should use the automatic `resources` and
 `diagnostics` fixtures provided by `integrationTest`.
