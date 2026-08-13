@@ -5,7 +5,7 @@
  * failure diagnostics when a test fails.
  */
 
-import { integrationTest } from '../../src/harness/integrationTestLifecycle.js';
+import { integrationTest } from '../../src/harness/base/public/modules/integrationTestLifecycle.js';
 
 integrationTest('emits failure diagnostics', ({ resources, diagnostics }) => {
     resources.track('my cloud resource', () => { /* No-op cleanup */ });

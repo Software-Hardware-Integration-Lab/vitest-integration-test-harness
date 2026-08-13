@@ -1,10 +1,4 @@
-/** Describes a single cleanup action that failed, captured while attempting to restore all tracked resources. */
-export interface ResourceCleanupFailure {
-    /** Description of the resource whose cleanup failed. */
-    'description': string;
-    /** The error raised while attempting cleanup. */
-    'error': unknown;
-}
+import type ResourceCleanupFailure from '../interfaces/resourceCleanupFailure.js';
 
 /** Raised when one or more tracked resource cleanups fail, after every cleanup has still been attempted. */
 export default class ResourceCleanupError extends Error {
@@ -21,7 +15,9 @@ export default class ResourceCleanupError extends Error {
         const details = failures
             .map(({ description, error }) => {
                 /** Human readable reason for the cleanup failure, derived from the error object. */
-                const reason = error instanceof Error ? `${ error.message }\n${ error.stack }` : String(error);
+                const reason = error instanceof Error
+                    ? `${ error.message }${ error.stack ? `\n${ error.stack }` : '' }`
+                    : String(error);
 
                 return `${ description }: ${ reason }`;
             }).join(';\n');
@@ -30,7 +26,7 @@ export default class ResourceCleanupError extends Error {
         const message = `[${ testName }] ${ failures.length } resource cleanup ` +
             `${ failures.length === 1 ? 'action' : 'actions' } failed:\n ${ details }`;
 
-        super(message);
+        super(message, { 'cause': failures[0]?.error });
 
         this.name = 'ResourceCleanupError';
 

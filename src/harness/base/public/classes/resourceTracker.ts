@@ -1,15 +1,6 @@
-import ResourceCleanupError, { type ResourceCleanupFailure } from './resourceCleanupError.js';
-
-/**
- * A single tracked resource awaiting cleanup: a human readable description plus the action that restores or
- * removes it.
- */
-interface TrackedResource {
-    /** Human readable description of the resource, used in diagnostics and cleanup error messages. */
-    'description': string;
-    /** Performs the cleanup/restoration for this specific resource. Must tolerate the resource already being gone. */
-    'cleanup': () => void | Promise<void>;
-}
+import ResourceCleanupError from '../errors/resourceCleanupError.js';
+import type TrackedResource from '../../private/interfaces/trackedResource.js';
+import type ResourceCleanupFailure from '../interfaces/resourceCleanupFailure.js';
 
 /**
  * Tracks resources created or modified during a single test so they can be reliably restored afterward, regardless
@@ -56,11 +47,15 @@ export default class ResourceTracker {
     /**
      * Runs cleanup for every tracked resource in reverse (LIFO) order. Never aborts early: a failing cleanup is
      * captured and the remaining resources are still attempted, so one broken cleanup can't strand the rest.
+     * Failed resources remain tracked and can be retried by calling this method again.
      * @throws {ResourceCleanupError} When one or more cleanup actions fail, after all cleanups have been attempted.
      */
     async cleanupAll(): Promise<void> {
         /** Failures captured while attempting each cleanup, so a single bad cleanup can't strand the rest. */
         const failures: ResourceCleanupFailure[] = [];
+
+        /** Resources whose cleanup failed and must remain available for a later retry. */
+        const unresolvedResources: TrackedResource[] = [];
 
         while (this.tracked.length > 0) {
             /** Next resource to clean up, taken from the end of the stack so cleanup runs in LIFO order. */
@@ -75,8 +70,12 @@ export default class ResourceTracker {
                     'description': resource.description,
                     error
                 });
+
+                unresolvedResources.push(resource);
             }
         }
+
+        this.tracked.push(...unresolvedResources.reverse());
 
         if (failures.length > 0) {
             throw new ResourceCleanupError(failures, this.testName);

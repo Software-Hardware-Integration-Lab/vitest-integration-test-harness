@@ -1,10 +1,11 @@
 import { type TestContext, afterEach, describe, expect, it, vi } from 'vitest';
-import DiagnosticsRecorder, { type FailureDiagnosticsPayload } from '../src/harness/diagnostics.js';
-import { evaluateReadiness } from '../src/harness/environment.js';
-import ResourceCleanupError from '../src/harness/resourceCleanupError.js';
-import ResourceTracker from '../src/harness/resourceTracker.js';
-import { integrationTest } from '../src/harness/integrationTestLifecycle.js';
-import { spawnSync } from 'node:child_process';
+import DiagnosticsRecorder from '../src/harness/base/private/classes/diagnostics.js';
+import type FailureDiagnosticsPayload from '../src/harness/base/public/interfaces/failureDiagnosticsPayload.js';
+import { evaluateReadiness } from '../src/harness/base/public/modules/environment.js';
+import ResourceCleanupError from '../src/harness/base/public/errors/resourceCleanupError.js';
+import ResourceTracker from '../src/harness/base/public/classes/resourceTracker.js';
+import { integrationTest } from '../src/harness/base/public/modules/integrationTestLifecycle.js';
+import { spawnSync, type SpawnSyncReturns } from 'node:child_process';
 
 void describe('evaluateReadiness', () => {
     it('reports ready when every check passes', async () => {
@@ -121,6 +122,34 @@ void describe('ResourceTracker', () => {
         }
     });
 
+    it('omits unavailable cleanup stacks and preserves the original error as the cause', () => {
+        /** Cleanup error whose stack is unavailable, as can happen with errors from external libraries. */
+        const cleanupError = new Error('cleanup boom');
+
+        cleanupError.stack = void 0;
+
+        /** Aggregate error constructed from the cleanup failure. */
+        const error = new ResourceCleanupError([
+            {
+                'description': 'will fail',
+                'error': cleanupError
+            }
+        ], 'unit-test');
+
+        expect(error.message).toContain('will fail: cleanup boom');
+
+        expect(error.message).not.toContain('undefined');
+
+        expect(error.cause).toBe(cleanupError);
+
+        expect(error.failures).toEqual([
+            {
+                'description': 'will fail',
+                'error': cleanupError
+            }
+        ]);
+    });
+
     it('exposes descriptions of resources still tracked', () => {
         /** Tracker under test, scoped to a fake test name since this exercises the class directly. */
         const tracker = new ResourceTracker('unit-test');
@@ -130,6 +159,32 @@ void describe('ResourceTracker', () => {
         tracker.track('beta', () => { /* No-op cleanup */ });
 
         expect(tracker.getTrackedDescriptions()).toEqual(['alpha', 'beta']);
+    });
+
+    it('retains failed cleanups so a later cleanup can retry them', async () => {
+        /** Tracker under test, scoped to a fake test name since this exercises the class directly. */
+        const tracker = new ResourceTracker('unit-test');
+
+        /** Counts cleanup attempts to simulate a transient eventual-consistency failure. */
+        let attempts = 0;
+
+        tracker.track('eventually consistent resource', () => {
+            attempts += 1;
+
+            if (attempts === 1) {
+                throw new Error('resource is not ready for cleanup');
+            }
+        });
+
+        await expect(tracker.cleanupAll()).rejects.toThrow(ResourceCleanupError);
+
+        expect(tracker.getTrackedDescriptions()).toEqual(['eventually consistent resource']);
+
+        await tracker.cleanupAll();
+
+        expect(attempts).toBe(2);
+
+        expect(tracker.getTrackedDescriptions()).toEqual([]);
     });
 });
 
@@ -162,6 +217,93 @@ void describe('DiagnosticsRecorder', () => {
 
         expect(payload.failureMessages).toEqual(['expected failure']);
     });
+
+    it('passes the captured failure payload to registered reporters', () => {
+        /** Spy replacing `console.error` so the expected diagnostic output does not reach the test runner. */
+        vi.spyOn(console, 'error').mockImplementation(() => { /* Silence expected diagnostic output */ });
+
+        /** Reporter spy that receives the payload when the recorder flushes. */
+        const reporter = { 'report': vi.fn() };
+
+        /** Recorder under test, scoped to a fake test name since this exercises the class directly. */
+        const recorder = new DiagnosticsRecorder('unit-test');
+
+        recorder.record('note', { 'detail': 42 });
+
+        recorder.addReporter(reporter);
+
+        /** Minimal fake test context, shaped just enough for `flush` to read a failure message from it. */
+        const fakeContext = {
+            'task': {
+                'name': 'unit-test',
+                'result': { 'errors': [{ 'message': 'expected failure' }] }
+            }
+        } as unknown as TestContext;
+
+        recorder.flush(fakeContext);
+
+        expect(reporter.report).toHaveBeenCalledWith({
+            'failureMessages': ['expected failure'],
+            'recordedContext': [
+                {
+                    'label': 'note',
+                    'detail': { 'detail': 42 }
+                }
+            ]
+        });
+    });
+
+    it('redacts nested built-in and suite-specific sensitive diagnostic values before emission', () => {
+        /** Spy replacing `console.error` so the expected diagnostic output does not reach the test runner. */
+        vi.spyOn(console, 'error').mockImplementation(() => { /* Silence expected diagnostic output */ });
+
+        /** Reporter spy that receives the redacted payload when the recorder flushes. */
+        const reporter = { 'report': vi.fn() };
+
+        /** Recorder under test, scoped to a fake test name since this exercises the class directly. */
+        const recorder = new DiagnosticsRecorder('unit-test');
+
+        recorder.addRedactionRules(['privateValue', /session[-_]?id/iu]);
+
+        recorder.record('response', {
+            'authorization': 'Bearer real-token',
+            'nested': {
+                'apiKey': 'real-api-key',
+                'privateValue': 'internal-value',
+                'session_id': 'real-session-id',
+                'safeValue': 'safe-value'
+            }
+        });
+
+        /** Minimal fake test context, shaped just enough for `flush` to read a failure message from it. */
+        const fakeContext = {
+            'task': {
+                'name': 'unit-test',
+                'result': { 'errors': [{ 'message': 'expected failure' }] }
+            }
+        } as unknown as TestContext;
+
+        recorder.addReporter(reporter);
+
+        recorder.flush(fakeContext);
+
+        expect(reporter.report).toHaveBeenCalledWith(expect.objectContaining({
+            'recordedContext': [
+                {
+                    'label': 'response',
+                    'detail': {
+                        'authorization': '[REDACTED]',
+                        'nested': {
+                            'apiKey': '[REDACTED]',
+                            'privateValue': '[REDACTED]',
+                            'session_id': '[REDACTED]',
+                            'safeValue': 'safe-value'
+                        }
+                    }
+                }
+            ]
+        }));
+    });
 });
 
 void describe('integration lifecycle wiring (real fixtures)', () => {
@@ -180,13 +322,31 @@ void describe('integration lifecycle wiring (real fixtures)', () => {
     integrationTest('previous test\'s resources were already cleaned up in LIFO order by the time this test runs', () => {
         expect(cleanupOrder).toEqual(['inner', 'outer']);
     });
-
-    integrationTest('diagnostics fixture is present without a test explicitly requesting it', ({ diagnostics }) => {
-        expect(diagnostics).toBeInstanceOf(DiagnosticsRecorder);
-    });
 });
 
 void describe('Failure Snapshot', () => {
+    /**
+     * Returns a fixture process's exit status or throws if it did not start or complete normally.
+     * @param fixturePath Path to the fixture that was run.
+     * @param result Result returned by `spawnSync`.
+     * @returns The fixture process's exit status.
+     */
+    function getFixtureExitStatus(fixturePath: string, result: SpawnSyncReturns<string>): number {
+        if (result.error !== void 0) {
+            throw new Error(`Could not start failure snapshot fixture ${ fixturePath }: ${ result.error.message }`);
+        }
+
+        if (result.signal !== null) {
+            throw new Error(`Failure snapshot fixture ${ fixturePath } was terminated by signal ${ result.signal }.`);
+        }
+
+        if (result.status === null) {
+            throw new Error(`Failure snapshot fixture ${ fixturePath } did not return an exit status.`);
+        }
+
+        return result.status;
+    }
+
     /**
      * Runs a fixture in a child process and captures its output, so assertions can be made on the text without
      * the fixture's own test failures affecting the parent process.
@@ -199,26 +359,16 @@ void describe('Failure Snapshot', () => {
         /** The combined stdout/stderr output of the child process, with ANSI escape codes stripped out. */
         'output': string;
     } {
-        /** The script to run to allow the fixture to run as a child test. */
-        const runnerScript = `
-    import { startVitest } from 'vitest/node';
-
-    const vitest = await startVitest('test', [], {
-        include: [${ JSON.stringify(fixturePath) }],
-        environment: 'node',
-        pool: 'forks',
-        fileParallelism: false
-    });
-
-    process.exitCode = vitest?.state.getFiles().some((file) =>
-        file.result?.state === 'fail'
-    ) ? 1 : 0;
-`;
-
         /** The process result from the child fixture run. */
         const result = spawnSync(
             process.execPath,
-            ['--input-type=module', '--eval', runnerScript],
+            [
+                './node_modules/vitest/vitest.mjs',
+                'run',
+                '--config',
+                'vitest.failure-fixtures.config.ts',
+                fixturePath
+            ],
             {
                 'cwd': process.cwd(),
                 'encoding': 'utf8'
@@ -236,14 +386,57 @@ void describe('Failure Snapshot', () => {
         const cleanOutput = output.replaceAll(/\x1B\[[0-?]*[ -/]*[@-~]/gu, '');
 
         return {
-            'status': result.status ?? 0,
+            'status': getFixtureExitStatus(fixturePath, result),
             'output': cleanOutput
         };
     }
 
+    it('throws a descriptive error when the child process cannot start', () => {
+        /** Error reported by the operating system when it cannot start the child process. */
+        const startupError = new Error('spawn failed');
+
+        const result = {
+            'error': startupError,
+            'output': [null, '', ''],
+            'pid': 0,
+            'signal': null,
+            'status': null,
+            'stderr': '',
+            'stdout': ''
+        } as SpawnSyncReturns<string>;
+
+        expect(() => { getFixtureExitStatus('test/fixtures/failure-diagnostics.fixture.ts', result); }).toThrow('Could not start failure snapshot fixture test/fixtures/failure-diagnostics.fixture.ts: spawn failed');
+    });
+
+    it('throws when the child process is terminated by a signal', () => {
+        const result = {
+            'output': [null, '', ''],
+            'pid': 1,
+            'signal': 'SIGTERM',
+            'status': null,
+            'stderr': '',
+            'stdout': ''
+        } as SpawnSyncReturns<string>;
+
+        expect(() => { getFixtureExitStatus('test/fixtures/failure-diagnostics.fixture.ts', result); }).toThrow('Failure snapshot fixture test/fixtures/failure-diagnostics.fixture.ts was terminated by signal SIGTERM.');
+    });
+
+    it('throws when the child process does not return an exit status', () => {
+        const result = {
+            'output': [null, '', ''],
+            'pid': 1,
+            'signal': null,
+            'status': null,
+            'stderr': '',
+            'stdout': ''
+        } as SpawnSyncReturns<string>;
+
+        expect(() => { getFixtureExitStatus('test/fixtures/failure-diagnostics.fixture.ts', result); }).toThrow('Failure snapshot fixture test/fixtures/failure-diagnostics.fixture.ts did not return an exit status.');
+    });
+
     it('captures and emits a failure snapshot when a test fails', () => {
         /** The path to the failure-diagnostics fixture. */
-        const fixturePath = 'bin/test/fixtures/failure-diagnostics.fixture.js';
+        const fixturePath = 'test/fixtures/failure-diagnostics.fixture.ts';
 
         const { status, output } = runFixtureAndCaptureOutput(fixturePath);
 
@@ -258,7 +451,7 @@ void describe('Failure Snapshot', () => {
 
     it('captures and emits a cleanup failure snapshot when a cleanup fails', () => {
         /** The path to the cleanup-diagnostics fixture. */
-        const fixturePath = 'bin/test/fixtures/cleanup-diagnostics.fixture.js';
+        const fixturePath = 'test/fixtures/cleanup-diagnostics.fixture.ts';
 
         const { status, output } = runFixtureAndCaptureOutput(fixturePath);
 
@@ -272,5 +465,46 @@ void describe('Failure Snapshot', () => {
 
         // Contains cleanup error message
         expect(output).toContain('cleanup exception');
+    });
+
+    it('skips test execution when the file-scoped environment is unready', () => {
+        /** The path to the fixture whose test body must be skipped. */
+        const fixturePath = 'test/fixtures/unready-environment.fixture.ts';
+
+        const { status, output } = runFixtureAndCaptureOutput(fixturePath);
+
+        expect(status).toBe(0);
+
+        expect(output).toContain('1 skipped');
+
+        expect(output).not.toContain('unready environment allowed the test body to run');
+    });
+
+    it('runs file-scoped readiness once for every test in a fixture file', () => {
+        /** The path to the fixture that checks a shared file-scoped readiness counter. */
+        const fixturePath = 'test/fixtures/file-scoped-readiness.fixture.ts';
+
+        const { status, output } = runFixtureAndCaptureOutput(fixturePath);
+
+        expect(status).toBe(0);
+
+        expect(output).toContain('2 passed');
+    });
+
+    it('emits diagnostics when a test and its cleanup both fail', () => {
+        /** The path to the fixture that combines test and cleanup failures. */
+        const fixturePath = 'test/fixtures/test-and-cleanup-failure.fixture.ts';
+
+        const { status, output } = runFixtureAndCaptureOutput(fixturePath);
+
+        expect(status).not.toBe(0);
+
+        expect(output).toContain('[Integration Test Failure Diagnostics]');
+
+        expect(output).toContain('expected test failure');
+
+        expect(output).toContain('fixture resource');
+
+        expect(output).toContain('expected cleanup failure');
     });
 });
