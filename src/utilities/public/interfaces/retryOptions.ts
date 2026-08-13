@@ -8,4 +8,5 @@ export interface RetryOptions {
     'backoffMultiplier'?: number;
     'jitterRatio'?: number;
     'signal'?: AbortSignal;
+    'shouldRetry'?: (error: unknown, attempt: number) => boolean;
 }

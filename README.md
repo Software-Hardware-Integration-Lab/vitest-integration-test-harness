@@ -92,7 +92,10 @@ opt-in.
 `maxIntervalMs: initialIntervalMs`, and `backoffMultiplier: 1`, giving a constant 100 ms retry interval by default.
 Set `backoffMultiplier` above `1` and increase `maxIntervalMs` to use bounded exponential backoff. All interval values
 must be finite non-negative numbers; `maxIntervalMs` cannot be less than `initialIntervalMs`; and
-`backoffMultiplier` must be at least `1`. An aborted `signal` stops an in-progress retry or pending retry delay.
+`backoffMultiplier` must be at least `1`. An aborted `signal` stops an in-progress operation or pending retry delay.
+The operation and `check` callbacks receive that signal, allowing compatible I/O such as `fetch` to terminate
+underlying work. Use `shouldRetry(error, attempt)` to reject permanent failures immediately; it defaults to retrying
+every error for backward compatibility.
 
 ## Harness Behavior
 
@@ -105,14 +108,15 @@ must be finite non-negative numbers; `maxIntervalMs` cannot be less than `initia
 - The `diagnostics` fixture is active automatically. Call `diagnostics.record(label, detail)` to capture serializable
   context; it is printed to `console.error` only when the test fails, together with Vitest's failure messages. Values
   of properties named `authorization`, `apiKey`, `connectionString`, `password`, `secret`, `token`, or `credential`
-  (including nested properties) are redacted. Call `diagnostics.addRedactionRules(['serviceCredential', /cookie/iu])`
-  to redact suite-specific property names as well.
+  (including nested properties) are redacted when diagnostics are emitted. Call
+  `diagnostics.addRedactionRules(['serviceCredential', /cookie/iu])` to redact suite-specific property names as well;
+  entries are retained unredacted until the test completes so later rules also apply to earlier entries.
 - The `readinessGate` fixture is active automatically and skips tests whose `environment` result is not ready.
 
 ## Public API
 
 The package exports `integrationTest`, `evaluateReadiness`, `retry`, `pollUntil`, `ResourceTracker`,
-`ResourceCleanupError`, and `RetryTimeoutError`, plus the related TypeScript types: `EnvironmentReadiness`,
+`ResourceCleanupError`, `RetryTimeoutError`, and `PollPredicateMismatchError`, plus the related TypeScript types: `EnvironmentReadiness`,
 `ReadinessCheck`, `RetryOptions`, `PollResult`, `ResourceCleanupFailure`, `FailureDiagnosticsPayload`,
 `Diagnostics`, `DiagnosticEntry`, `DiagnosticRedactionRule`, `DiagnosticReporter`, and `IntegrationTestFixtures`.
 

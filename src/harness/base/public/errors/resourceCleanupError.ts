@@ -16,7 +16,7 @@ export default class ResourceCleanupError extends Error {
             .map(({ description, error }) => {
                 /** Human readable reason for the cleanup failure, derived from the error object. */
                 const reason = error instanceof Error
-                    ? `${ error.message }${ error.stack ? `\n${ error.stack }` : '' }`
+                    ? error.message
                     : String(error);
 
                 return `${ description }: ${ reason }`;

@@ -151,4 +151,59 @@ void describe('retry utilities', () => {
 
         await expect(pendingRetry).rejects.toMatchObject({ 'name': 'AbortError' });
     });
+
+    it('times out an operation that remains in progress past the deadline', async () => {
+        const operation = vi.fn(() => new Promise<string>(() => { /* Intentionally never settles. */ }));
+
+        await expect(retry(operation, { 'timeoutMs': 10 })).rejects.toBeInstanceOf(RetryTimeoutError);
+
+        expect(operation).toHaveBeenCalledOnce();
+    });
+
+    it('cancels an in-progress operation and passes its signal to the operation', async () => {
+        const controller = new AbortController();
+
+        let operationSignal: AbortSignal | undefined;
+
+        const pendingRetry = retry((signal) => {
+            operationSignal = signal;
+
+            return new Promise<string>(() => { /* Intentionally never settles. */ });
+        }, {
+            'timeoutMs': 1_000,
+            'signal': controller.signal
+        });
+
+        controller.abort(new Error('caller canceled retry'));
+
+        await expect(pendingRetry).rejects.toThrow('caller canceled retry');
+
+        expect(operationSignal?.aborted).toBe(true);
+    });
+
+    it('immediately rethrows an error rejected by shouldRetry', async () => {
+        const permanentError = new Error('invalid request');
+
+        await expect(retry(() => { throw permanentError; }, {
+            'timeoutMs': 100,
+            'shouldRetry': () => false
+        })).rejects.toBe(permanentError);
+    });
+
+    it('retains the final mismatched poll value in the timeout error', async () => {
+        const finalValue = { 'status': 'creating' };
+
+        try {
+            await pollUntil(() => finalValue, (value) => value.status === 'ready', {
+                'timeoutMs': 10,
+                'initialIntervalMs': 0
+            });
+
+            expect.unreachable('pollUntil should time out');
+        } catch (error) {
+            expect(error).toBeInstanceOf(RetryTimeoutError);
+
+            expect((error as RetryTimeoutError).lastError).toMatchObject({ 'lastValue': finalValue });
+        }
+    });
 });

@@ -304,6 +304,45 @@ void describe('DiagnosticsRecorder', () => {
             ]
         }));
     });
+
+    it('applies rules added after recording and does not invoke diagnostic accessors', () => {
+        const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => { /* Silence expected diagnostic output */ });
+
+        const recorder = new DiagnosticsRecorder('unit-test');
+
+        const detail = {} as {
+            'serviceCredential': string;
+            'sideEffect': string;
+        };
+
+        Object.defineProperty(detail, 'serviceCredential', {
+            'enumerable': true,
+            'value': 'secret'
+        });
+
+        Object.defineProperty(detail, 'sideEffect', {
+            'enumerable': true,
+            'get': () => { throw new Error('getter must not run'); }
+        });
+
+        recorder.record('response', detail);
+
+        recorder.addRedactionRules(['serviceCredential']);
+
+        recorder.flush({ 'task': { 'result': { 'errors': [] } } } as unknown as TestContext);
+
+        expect(consoleSpy).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({
+            'recordedContext': [
+                {
+                    'label': 'response',
+                    'detail': {
+                        'serviceCredential': '[REDACTED]',
+                        'sideEffect': '[Accessor diagnostic value]'
+                    }
+                }
+            ]
+        }));
+    });
 });
 
 void describe('integration lifecycle wiring (real fixtures)', () => {
@@ -457,13 +496,10 @@ void describe('Failure Snapshot', () => {
 
         expect(status).not.toBe(0);
 
-        // Contains stack trace
-        expect(output).toContain('at Object.cleanup');
+        expect(output).toContain('ResourceCleanupError: [emits cleanup failure diagnostics] 1 resource cleanup action failed:');
 
-        // Contains resource name
         expect(output).toContain('my cloud resource');
 
-        // Contains cleanup error message
         expect(output).toContain('cleanup exception');
     });
 

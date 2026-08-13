@@ -1,4 +1,5 @@
 import { setTimeout as sleep } from 'node:timers/promises';
+import { PollPredicateMismatchError } from '../errors/pollPredicateMismatchError.js';
 import { RetryTimeoutError } from '../errors/retryTimeoutError.js';
 import type { PollResult } from '../interfaces/pollResult.js';
 import type { RetryOptions } from '../interfaces/retryOptions.js';
@@ -10,6 +11,7 @@ interface ResolvedRetryOptions {
     'backoffMultiplier': number;
     'jitterRatio': number;
     'signal': AbortSignal | undefined;
+    'shouldRetry': (error: unknown, attempt: number) => boolean;
 }
 
 function resolveRetryOptions(options: RetryOptions): ResolvedRetryOptions {
@@ -47,7 +49,8 @@ function resolveRetryOptions(options: RetryOptions): ResolvedRetryOptions {
         maxIntervalMs,
         backoffMultiplier,
         jitterRatio,
-        'signal': options.signal
+        'signal': options.signal,
+        'shouldRetry': options.shouldRetry ?? (() : boolean => true)
     };
 }
 
@@ -67,6 +70,34 @@ function addJitter(delayMs: number, jitterRatio: number): number {
     return Math.round(delayMs * (1 + jitterOffset));
 }
 
+function abortReason(signal: AbortSignal): Error {
+    return signal.reason instanceof Error
+        ? signal.reason
+        : new DOMException('The operation was aborted.', 'AbortError');
+}
+
+function createAbortPromise(signal: AbortSignal): {
+    'promise': Promise<never>;
+    'dispose': () => void;
+} {
+    let abortListener: (() => void) | undefined;
+
+    const promise = new Promise<never>((_resolve, reject): void => {
+        abortListener = (): void => { reject(abortReason(signal)); };
+
+        signal.addEventListener('abort', abortListener, { 'once': true });
+    });
+
+    if (signal.aborted) {
+        abortListener();
+    }
+
+    return {
+        promise,
+        'dispose': (): void => { signal.removeEventListener('abort', abortListener!); }
+    };
+}
+
 /**
  * Retries the provided operation until it succeeds or the specified timeout is reached. The retry behavior can be configured using the provided options.
  * @template T The type of the value returned by the operation.
@@ -76,7 +107,7 @@ function addJitter(delayMs: number, jitterRatio: number): number {
  * @throws {RetryTimeoutError} If the operation does not succeed within the specified timeout.
  */
 export async function retry<T>(
-    operation: () => T | Promise<T>,
+    operation: (signal: AbortSignal) => T | Promise<T>,
     options: RetryOptions
 ): Promise<PollResult<T>> {
     const resolvedOptions = resolveRetryOptions(options);
@@ -104,8 +135,20 @@ export async function retry<T>(
 
         attempts += 1;
 
+        const timeoutError = new RetryTimeoutError(attempts, lastError);
+
+        const timeoutController = new AbortController();
+
+        const timeout = setTimeout(() => { timeoutController.abort(timeoutError); }, remainingMs(deadline));
+
+        const operationSignal = resolvedOptions.signal === void 0
+            ? timeoutController.signal
+            : AbortSignal.any([resolvedOptions.signal, timeoutController.signal]);
+
+        const abort = createAbortPromise(operationSignal);
+
         try {
-            const value = await operation();
+            const value = await Promise.race([operation(operationSignal), abort.promise]);
 
             return {
                 value,
@@ -113,7 +156,23 @@ export async function retry<T>(
                 'elapsedMs': elapsedMs(startedAt)
             };
         } catch (error) {
+            if (timeoutController.signal.aborted) {
+                throw timeoutError;
+            }
+
+            if (resolvedOptions.signal?.aborted) {
+                throw abortReason(resolvedOptions.signal);
+            }
+
             lastError = error;
+
+            if (!resolvedOptions.shouldRetry(error, attempts)) {
+                throw error;
+            }
+        } finally {
+            clearTimeout(timeout);
+
+            abort.dispose();
         }
 
         const remaining = remainingMs(deadline);
@@ -140,15 +199,15 @@ export async function retry<T>(
  * @throws {RetryTimeoutError} If the predicate is not satisfied before the timeout.
  */
 export async function pollUntil<T>(
-    check: () => T | Promise<T>,
+    check: (signal: AbortSignal) => T | Promise<T>,
     predicate: (value: T) => boolean,
     options: RetryOptions
 ): Promise<PollResult<T>> {
-    return retry(async () => {
-        const value = await check();
+    return retry(async (signal) => {
+        const value = await check(signal);
 
         if (!predicate(value)) {
-            throw new Error('Poll condition was not met.');
+            throw new PollPredicateMismatchError(value);
         }
 
         return value;

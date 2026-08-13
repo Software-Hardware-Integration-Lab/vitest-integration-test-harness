@@ -49,6 +49,18 @@ function sanitizeDiagnosticValue(value: unknown, rules: readonly DiagnosticRedac
         return value;
     }
 
+    const prototype = Object.getPrototypeOf(value) as object | null;
+
+    if (!Array.isArray(value) && prototype !== Object.prototype && prototype !== null) {
+        return value instanceof Error
+            ? {
+                'name': value.name,
+                'message': value.message,
+                'stack': value.stack
+            }
+            : '[Non-plain diagnostic value]';
+    }
+
     const existingSanitizedValue = seen.get(value);
 
     if (existingSanitizedValue !== void 0) {
@@ -59,10 +71,16 @@ function sanitizeDiagnosticValue(value: unknown, rules: readonly DiagnosticRedac
 
     seen.set(value, sanitizedValue);
 
-    for (const [key, nestedValue] of Object.entries(value)) {
-        sanitizedValue[key] = isSensitiveKey(key, rules)
-            ? redactedValue
-            : sanitizeDiagnosticValue(nestedValue, rules, seen);
+    for (const key of Object.keys(value)) {
+        const descriptor = Object.getOwnPropertyDescriptor(value, key);
+
+        if (isSensitiveKey(key, rules)) {
+            sanitizedValue[key] = redactedValue;
+        } else if (descriptor !== void 0 && 'value' in descriptor) {
+            sanitizedValue[key] = sanitizeDiagnosticValue(descriptor.value, rules, seen);
+        } else {
+            sanitizedValue[key] = '[Accessor diagnostic value]';
+        }
     }
 
     return sanitizedValue;
@@ -95,20 +113,19 @@ export default class DiagnosticsRecorder {
     }
 
     /**
-     * Records a piece of diagnostic context. Cheap to call liberally since nothing is printed unless the test
-     * fails. Values with known sensitive property names are redacted before being retained.
+     * Records diagnostic context, retaining values until failure emission so later rules still apply.
      * @param label Short label identifying what this entry describes.
      * @param detail Arbitrary detail to capture.
      */
     record(label: string, detail: unknown): void {
         this.#entries.push({
             label,
-            'detail': sanitizeDiagnosticValue(detail, this.#redactionRules)
+            detail
         });
     }
 
     /**
-     * Adds property-name rules for diagnostic values that must be redacted before they are retained or emitted.
+     * Adds property-name rules for diagnostic values that must be redacted before they are emitted.
      * @param rules Property-name rules to add for the current test's diagnostics.
      */
     addRedactionRules(rules: readonly DiagnosticRedactionRule[]): void {
@@ -135,7 +152,10 @@ export default class DiagnosticsRecorder {
         /** Structured diagnostic payload printed alongside the failure header. */
         const payload: FailureDiagnosticsPayload = {
             failureMessages,
-            'recordedContext': this.#entries
+            'recordedContext': this.#entries.map(({ label, detail }) => ({
+                label,
+                'detail': sanitizeDiagnosticValue(detail, this.#redactionRules)
+            }))
         };
 
         console.error(`\n[Integration Test Failure Diagnostics] ${ this.#testName }`, payload);

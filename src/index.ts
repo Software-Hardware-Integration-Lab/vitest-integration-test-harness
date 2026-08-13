@@ -31,3 +31,5 @@ export type { default as ResourceCleanupFailure } from './harness/base/public/in
 export { default as ResourceTracker } from './harness/base/public/classes/resourceTracker.js';
 
 export { RetryTimeoutError } from './utilities/public/errors/retryTimeoutError.js';
+
+export { PollPredicateMismatchError } from './utilities/public/errors/pollPredicateMismatchError.js';
