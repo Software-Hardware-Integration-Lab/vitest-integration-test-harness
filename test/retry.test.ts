@@ -206,4 +206,25 @@ void describe('retry utilities', () => {
             expect((error as RetryTimeoutError).lastError).toMatchObject({ 'lastValue': finalValue });
         }
     });
+
+    it.each([
+        ['timeoutMs', { 'timeoutMs': 2_147_483_648 }],
+        [
+            'initialIntervalMs',
+            {
+                'timeoutMs': 1,
+                'initialIntervalMs': 2_147_483_648
+            }
+        ],
+        [
+            'maxIntervalMs',
+            {
+                'timeoutMs': 1,
+                'initialIntervalMs': 0,
+                'maxIntervalMs': 2_147_483_648
+            }
+        ]
+    ])('rejects a %s value beyond the Node timer limit', async (_optionName, options) => {
+        await expect(retry(() => 'unused', options)).rejects.toBeInstanceOf(RangeError);
+    });
 });

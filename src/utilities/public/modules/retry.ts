@@ -4,6 +4,9 @@ import { RetryTimeoutError } from '../errors/retryTimeoutError.js';
 import type { PollResult } from '../interfaces/pollResult.js';
 import type { RetryOptions } from '../interfaces/retryOptions.js';
 
+/** Largest delay accepted by Node.js timer APIs without being clamped to approximately one millisecond. */
+const maximumTimerDelayMs = 2_147_483_647;
+
 interface ResolvedRetryOptions {
     'timeoutMs': number;
     'initialIntervalMs': number;
@@ -23,16 +26,16 @@ function resolveRetryOptions(options: RetryOptions): ResolvedRetryOptions {
 
     const jitterRatio = options.jitterRatio ?? 0;
 
-    if (!Number.isFinite(options.timeoutMs) || options.timeoutMs < 0) {
-        throw new RangeError('timeoutMs must be a finite non-negative number.');
+    if (!Number.isFinite(options.timeoutMs) || options.timeoutMs < 0 || options.timeoutMs > maximumTimerDelayMs) {
+        throw new RangeError(`timeoutMs must be a finite number from 0 through ${ maximumTimerDelayMs }.`);
     }
 
-    if (!Number.isFinite(initialIntervalMs) || initialIntervalMs < 0) {
-        throw new RangeError('initialIntervalMs must be a finite non-negative number.');
+    if (!Number.isFinite(initialIntervalMs) || initialIntervalMs < 0 || initialIntervalMs > maximumTimerDelayMs) {
+        throw new RangeError(`initialIntervalMs must be a finite number from 0 through ${ maximumTimerDelayMs }.`);
     }
 
-    if (!Number.isFinite(maxIntervalMs) || maxIntervalMs < initialIntervalMs) {
-        throw new RangeError('maxIntervalMs must be finite and at least initialIntervalMs.');
+    if (!Number.isFinite(maxIntervalMs) || maxIntervalMs < initialIntervalMs || maxIntervalMs > maximumTimerDelayMs) {
+        throw new RangeError(`maxIntervalMs must be a finite number from ${ initialIntervalMs } through ${ maximumTimerDelayMs }.`);
     }
 
     if (!Number.isFinite(backoffMultiplier) || backoffMultiplier < 1) {
@@ -89,7 +92,7 @@ function createAbortPromise(signal: AbortSignal): {
     });
 
     if (signal.aborted) {
-        abortListener();
+        abortListener!();
     }
 
     return {

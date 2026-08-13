@@ -28,7 +28,7 @@ const defaultRedactionRules: readonly RegExp[] = [
 function isSensitiveKey(key: string, rules: readonly DiagnosticRedactionRule[]): boolean {
     return [...defaultRedactionRules, ...rules].some((rule) => {
         if (typeof rule === 'string') {
-            return rule.toLocaleLowerCase() === key.toLocaleLowerCase();
+            return rule.toLowerCase() === key.toLowerCase();
         }
 
         rule.lastIndex = 0;

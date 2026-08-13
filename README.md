@@ -91,7 +91,7 @@ opt-in.
 `timeoutMs` is required. The remaining options default to `initialIntervalMs: 100`,
 `maxIntervalMs: initialIntervalMs`, and `backoffMultiplier: 1`, giving a constant 100 ms retry interval by default.
 Set `backoffMultiplier` above `1` and increase `maxIntervalMs` to use bounded exponential backoff. All interval values
-must be finite non-negative numbers; `maxIntervalMs` cannot be less than `initialIntervalMs`; and
+must be finite numbers from `0` through `2_147_483_647` milliseconds; `maxIntervalMs` cannot be less than `initialIntervalMs`; and
 `backoffMultiplier` must be at least `1`. An aborted `signal` stops an in-progress operation or pending retry delay.
 The operation and `check` callbacks receive that signal, allowing compatible I/O such as `fetch` to terminate
 underlying work. Use `shouldRetry(error, attempt)` to reject permanent failures immediately; it defaults to retrying
@@ -115,10 +115,27 @@ every error for backward compatibility.
 
 ## Public API
 
-The package exports `integrationTest`, `evaluateReadiness`, `retry`, `pollUntil`, `ResourceTracker`,
-`ResourceCleanupError`, `RetryTimeoutError`, and `PollPredicateMismatchError`, plus the related TypeScript types: `EnvironmentReadiness`,
-`ReadinessCheck`, `RetryOptions`, `PollResult`, `ResourceCleanupFailure`, `FailureDiagnosticsPayload`,
-`Diagnostics`, `DiagnosticEntry`, `DiagnosticRedactionRule`, `DiagnosticReporter`, and `IntegrationTestFixtures`.
+| Export | Kind | Purpose |
+| --- | --- | --- |
+| `integrationTest` | Function | Vitest test API with automatic resource cleanup, failure diagnostics, and readiness gating. |
+| `evaluateReadiness` | Function | Runs readiness checks in order and returns a result containing the first failure reason, if any. |
+| `retry` | Function | Repeats a signal-aware operation until it succeeds, times out, is cancelled, or `shouldRetry` rejects an error. |
+| `pollUntil` | Function | Uses `retry` to repeat a signal-aware check until its value satisfies a predicate, times out, is cancelled, or `shouldRetry` rejects an error. |
+| `ResourceTracker` | Class | Tracks cleanup callbacks and runs them in LIFO order. |
+| `ResourceCleanupError` | Error class | Aggregates cleanup failures after every tracked callback has been attempted. |
+| `RetryTimeoutError` | Error class | Reports a retry or poll timeout with the attempt count and most recent error. |
+| `PollPredicateMismatchError` | Error class | Holds the most recent value that did not satisfy a polling predicate. |
+| `EnvironmentReadiness` | Type | A readiness result containing a boolean state and optional failure reason. |
+| `ReadinessCheck` | Type | A named synchronous or asynchronous verification that returns `true`, `false`, or throws. |
+| `RetryOptions` | Type | Configures retry timeout, intervals, backoff, jitter, cancellation, and retry eligibility. |
+| `PollResult<T>` | Type | Contains a successful value, attempt count, and elapsed time. |
+| `ResourceCleanupFailure` | Type | A failed cleanup's resource description and error. |
+| `FailureDiagnosticsPayload` | Type | Failure messages and recorded diagnostic entries emitted after a test fails. |
+| `Diagnostics` | Type | Records diagnostic context, redaction rules, and failure reporters. |
+| `DiagnosticEntry` | Type | A labeled diagnostic detail value. |
+| `DiagnosticRedactionRule` | Type | A string or regular expression that identifies sensitive property names. |
+| `DiagnosticReporter` | Type | Receives the diagnostic payload for a failed test. |
+| `IntegrationTestFixtures` | Type | Fixtures supplied by `integrationTest`: environment, readiness gate, resources, and diagnostics. |
 
 `ResourceTracker` is available for custom fixture composition. Most suites should use the automatic `resources` and
 `diagnostics` fixtures provided by `integrationTest`.

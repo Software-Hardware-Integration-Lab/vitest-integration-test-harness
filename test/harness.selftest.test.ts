@@ -263,13 +263,14 @@ void describe('DiagnosticsRecorder', () => {
         /** Recorder under test, scoped to a fake test name since this exercises the class directly. */
         const recorder = new DiagnosticsRecorder('unit-test');
 
-        recorder.addRedactionRules(['privateValue', /session[-_]?id/iu]);
+        recorder.addRedactionRules(['privateValue', 'clientId', /session[-_]?id/iu]);
 
         recorder.record('response', {
             'authorization': 'Bearer real-token',
             'nested': {
                 'apiKey': 'real-api-key',
                 'privateValue': 'internal-value',
+                'CLIENTID': 'real-client-id',
                 'session_id': 'real-session-id',
                 'safeValue': 'safe-value'
             }
@@ -296,6 +297,7 @@ void describe('DiagnosticsRecorder', () => {
                         'nested': {
                             'apiKey': '[REDACTED]',
                             'privateValue': '[REDACTED]',
+                            'CLIENTID': '[REDACTED]',
                             'session_id': '[REDACTED]',
                             'safeValue': 'safe-value'
                         }
