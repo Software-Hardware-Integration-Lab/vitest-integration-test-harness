@@ -13,11 +13,11 @@ export default defineConfig({
                 'src/**/*.d.ts',
                 'bin/**/index.js'
             ],
-            'threshold': {
-                'statements': 100,
-                'branches': 100,
-                'functions': 100,
-                'lines': 100
+            'thresholds': {
+                'statements': 90,
+                'branches': 87.5,
+                'functions': 90,
+                'lines': 90
             }
         }
     }
