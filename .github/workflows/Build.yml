@@ -75,7 +75,7 @@ jobs:
 
       # Enable Node.JS in the build environment
       - name: Install - Node.JS Runtime
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         background: true
         with:
           node-version: 24
@@ -114,7 +114,7 @@ jobs:
 
       # Enable Node.JS in the build environment
       - name: Configure Node for GH Packages
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with:
           node-version: 24
           registry-url: https://npm.pkg.github.com
