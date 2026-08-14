@@ -403,6 +403,29 @@ void describe('DiagnosticsRecorder', () => {
         );
     });
 
+    it('suppresses reporter failure details when the CI diagnostics policy is enabled', () => {
+        vi.stubEnv('VITEST_INTEGRATION_HARNESS_ERROR_DETAILS', 'none');
+
+        const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => { /* Silence expected diagnostic output */ });
+
+        const recorder = new DiagnosticsRecorder('unit-test');
+
+        recorder.addReporter({
+            'report': (): void => { throw new Error('Bearer secret-token'); }
+        });
+
+        recorder.flush({
+            'task': {
+                'result': { 'errors': [{ 'message': 'expected failure' }] }
+            }
+        } as unknown as TestContext);
+
+        expect(consoleSpy).toHaveBeenCalledWith(
+            '\n[Integration Test Diagnostic Reporter Failure] unit-test',
+            '[SUPPRESSED]'
+        );
+    });
+
     it('redacts nested built-in and suite-specific sensitive diagnostic values before emission', () => {
         /** Spy replacing `console.error` so the expected diagnostic output does not reach the test runner. */
         vi.spyOn(console, 'error').mockImplementation(() => { /* Silence expected diagnostic output */ });
