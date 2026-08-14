@@ -248,7 +248,11 @@ void describe('ResourceTracker', () => {
 });
 
 void describe('DiagnosticsRecorder', () => {
-    afterEach(() => { vi.restoreAllMocks(); });
+    afterEach(() => {
+        vi.restoreAllMocks();
+
+        vi.unstubAllEnvs();
+    });
 
     it('prints recorded context only when flushed', () => {
         /** Spy replacing `console.error` for the duration of this test so output can be asserted on. */
@@ -289,6 +293,48 @@ void describe('DiagnosticsRecorder', () => {
         recorder.flush({ 'task': { } } as unknown as TestContext);
 
         expect(reporter.report).toHaveBeenCalledWith(expect.objectContaining({ 'failureMessages': [] }));
+    });
+
+    it('suppresses error details when the CI diagnostics policy is enabled', () => {
+        vi.stubEnv('VITEST_INTEGRATION_HARNESS_ERROR_DETAILS', 'none');
+
+        vi.spyOn(console, 'error').mockImplementation(() => { /* Silence expected diagnostic output */ });
+
+        let capturedPayload: FailureDiagnosticsPayload | undefined;
+
+        const recorder = new DiagnosticsRecorder('unit-test');
+
+        recorder.addReporter({
+            'report': (payload: FailureDiagnosticsPayload): void => {
+                capturedPayload = payload;
+            }
+        });
+
+        const error = new Error('Bearer secret-token');
+
+        error.stack = 'Error: Bearer secret-token';
+
+        recorder.record('request failure', error);
+
+        recorder.flush({
+            'task': {
+                'result': { 'errors': [{ 'message': 'Bearer secret-token' }] }
+            }
+        } as unknown as TestContext);
+
+        expect(capturedPayload).toEqual({
+            'failureMessages': ['[SUPPRESSED]'],
+            'recordedContext': [
+                {
+                    'label': 'request failure',
+                    'detail': {
+                        'name': 'Error',
+                        'message': '[SUPPRESSED]',
+                        'stack': '[SUPPRESSED]'
+                    }
+                }
+            ]
+        });
     });
 
     it('passes the captured failure payload to registered reporters', () => {

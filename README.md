@@ -164,6 +164,9 @@ every error for backward compatibility.
   (including nested properties) are redacted when diagnostics are emitted. Call
   `diagnostics.addRedactionRules(['serviceCredential', /cookie/iu])` to redact suite-specific property names as well;
   entries are retained unredacted until the test completes so later rules also apply to earlier entries.
+- Set `VITEST_INTEGRATION_HARNESS_ERROR_DETAILS=none` in CI to suppress raw Vitest failure messages and recorded
+  `Error` messages and stacks from diagnostic output and reporters. The default retains error details for local
+  debugging.
 - The `readinessGate` fixture is active automatically and skips tests whose `environment` result is not ready.
 
 ## Public API

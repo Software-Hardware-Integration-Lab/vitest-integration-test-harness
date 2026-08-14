@@ -8,6 +8,12 @@ import type FailureDiagnosticsPayload from '../../public/interfaces/failureDiagn
 /** Replacement for a diagnostic value whose property name matches a redaction rule. */
 const redactedValue = '[REDACTED]';
 
+/** Environment variable that suppresses raw error details from failure diagnostics when set to `none`. */
+const errorDetailsEnvironmentVariable = 'VITEST_INTEGRATION_HARNESS_ERROR_DETAILS';
+
+/** Replacement for an error message or stack suppressed by the CI diagnostics policy. */
+const suppressedErrorDetail = '[SUPPRESSED]';
+
 /** Sensitive property names commonly found in integration-test request and configuration data. */
 const defaultRedactionRules: readonly RegExp[] = [
     /^authorization$/iu,
@@ -41,10 +47,16 @@ function isSensitiveKey(key: string, rules: readonly DiagnosticRedactionRule[]):
  * Recursively copies a diagnostic value while replacing values held by sensitive properties.
  * @param value Value to sanitize.
  * @param rules Suite-provided property-name rules.
+ * @param includeErrorDetails Whether raw Error messages and stacks may be included in output.
  * @param seen Previously copied objects, used to preserve circular references.
  * @returns A recursively sanitized copy of the input value.
  */
-function sanitizeDiagnosticValue(value: unknown, rules: readonly DiagnosticRedactionRule[], seen = new WeakMap<object, unknown>()): unknown {
+function sanitizeDiagnosticValue(
+    value: unknown,
+    rules: readonly DiagnosticRedactionRule[],
+    includeErrorDetails: boolean,
+    seen = new WeakMap<object, unknown>()
+): unknown {
     if (value === null || typeof value !== 'object') {
         return value;
     }
@@ -55,8 +67,8 @@ function sanitizeDiagnosticValue(value: unknown, rules: readonly DiagnosticRedac
         return value instanceof Error
             ? {
                 'name': value.name,
-                'message': value.message,
-                'stack': value.stack
+                'message': includeErrorDetails ? value.message : suppressedErrorDetail,
+                'stack': includeErrorDetails ? value.stack : suppressedErrorDetail
             }
             : '[Non-plain diagnostic value]';
     }
@@ -77,7 +89,7 @@ function sanitizeDiagnosticValue(value: unknown, rules: readonly DiagnosticRedac
         if (isSensitiveKey(key, rules)) {
             sanitizedValue[key] = redactedValue;
         } else if (descriptor !== void 0 && 'value' in descriptor) {
-            sanitizedValue[key] = sanitizeDiagnosticValue(descriptor.value, rules, seen);
+            sanitizedValue[key] = sanitizeDiagnosticValue(descriptor.value, rules, includeErrorDetails, seen);
         } else {
             sanitizedValue[key] = '[Accessor diagnostic value]';
         }
@@ -146,15 +158,21 @@ export default class DiagnosticsRecorder {
      * @param context The failed test's context, used to report the test name and underlying failure errors.
      */
     flush(context: TestContext): void {
+        const includeErrorDetails = process.env[errorDetailsEnvironmentVariable] !== 'none';
+
         /** Human readable failure messages extracted from the test's recorded errors, if any. */
-        const failureMessages = (context.task.result?.errors ?? []).map((error) => error.message);
+        const testErrors = context.task.result?.errors ?? [];
+
+        const failureMessages = includeErrorDetails
+            ? testErrors.map((error) => error.message)
+            : testErrors.map(() => suppressedErrorDetail);
 
         /** Structured diagnostic payload printed alongside the failure header. */
         const payload: FailureDiagnosticsPayload = {
             failureMessages,
             'recordedContext': this.#entries.map(({ label, detail }) => ({
                 label,
-                'detail': sanitizeDiagnosticValue(detail, this.#redactionRules)
+                'detail': sanitizeDiagnosticValue(detail, this.#redactionRules, includeErrorDetails)
             }))
         };
 
@@ -164,7 +182,10 @@ export default class DiagnosticsRecorder {
             try {
                 reporter.report(payload);
             } catch (error) {
-                console.error(`\n[Integration Test Diagnostic Reporter Failure] ${ this.#testName }`, error);
+                console.error(
+                    `\n[Integration Test Diagnostic Reporter Failure] ${ this.#testName }`,
+                    includeErrorDetails ? error : suppressedErrorDetail
+                );
             }
         }
     }
