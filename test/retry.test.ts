@@ -162,6 +162,16 @@ void describe('retry utilities', () => {
         expect(operation).toHaveBeenCalledOnce();
     });
 
+    it('rejects a successful synchronous operation that blocks past the deadline', async () => {
+        await expect(retry(() => {
+            const blockingDeadline = process.hrtime.bigint() + 20_000_000n;
+
+            while (process.hrtime.bigint() < blockingDeadline) { /* Intentionally blocks the event loop. */ }
+
+            return 'late success';
+        }, { 'timeoutMs': 1 })).rejects.toBeInstanceOf(RetryTimeoutError);
+    });
+
     it('cancels an in-progress operation and passes its signal to the operation', async () => {
         const controller = new AbortController();
 

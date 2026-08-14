@@ -165,6 +165,10 @@ export async function retry<T>(
         try {
             const value = await Promise.race([operation(operationSignal), abort.promise]);
 
+            if (remainingMs(deadline) <= 0) {
+                throw timeoutError;
+            }
+
             return {
                 value,
                 attempts,
