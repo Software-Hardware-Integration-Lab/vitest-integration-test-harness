@@ -9,17 +9,17 @@ import type ResourceCleanupFailure from '../interfaces/resourceCleanupFailure.js
  */
 export default class ResourceTracker {
     /** Stack of tracked resources awaiting cleanup, in the order they were registered. */
-    private readonly tracked: TrackedResource[] = [];
+    readonly #tracked: TrackedResource[] = [];
 
     /** Name of the test this tracker is scoped to. Used only for diagnostics. */
-    private readonly testName: string;
+    readonly #testName: string;
 
     /**
      * Creates a resource tracker scoped to a single test.
      * @param testName Name of the test this tracker instance belongs to, used for diagnostic output.
      */
     constructor(testName: string) {
-        this.testName = testName;
+        this.#testName = testName;
     }
 
     /**
@@ -30,7 +30,7 @@ export default class ResourceTracker {
      * @param cleanup Action that reverses or removes the resource. Must tolerate the resource already being gone.
      */
     track(description: string, cleanup: () => void | Promise<void>): void {
-        this.tracked.push({
+        this.#tracked.push({
             description,
             cleanup
         });
@@ -41,7 +41,7 @@ export default class ResourceTracker {
      * @returns Read only list of descriptions for tracked resources, in registration order.
      */
     getTrackedDescriptions(): readonly string[] {
-        return this.tracked.map((resource) => resource.description);
+        return this.#tracked.map((resource) => resource.description);
     }
 
     /**
@@ -57,9 +57,9 @@ export default class ResourceTracker {
         /** Resources whose cleanup failed and must remain available for a later retry. */
         const unresolvedResources: TrackedResource[] = [];
 
-        while (this.tracked.length > 0) {
+        while (this.#tracked.length > 0) {
             /** Next resource to clean up, taken from the end of the stack so cleanup runs in LIFO order. */
-            const resource = this.tracked.pop();
+            const resource = this.#tracked.pop();
 
             if (!resource) { continue; }
 
@@ -75,10 +75,10 @@ export default class ResourceTracker {
             }
         }
 
-        this.tracked.push(...unresolvedResources.reverse());
+        this.#tracked.push(...unresolvedResources.reverse());
 
         if (failures.length > 0) {
-            throw new ResourceCleanupError(failures, this.testName);
+            throw new ResourceCleanupError(failures, this.#testName);
         }
     }
 }
