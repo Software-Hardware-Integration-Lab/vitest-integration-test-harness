@@ -2,6 +2,9 @@ import { eslintConfig } from '@software-hardware-integration-lab/development-uti
 import { defineConfig } from 'eslint/config'
 
 export default defineConfig([
+    {
+        'ignores': ['coverage/**']
+    },
     ...eslintConfig,
     {
         rules: {

@@ -12,7 +12,13 @@ export default defineConfig({
             'exclude': [
                 'src/**/*.d.ts',
                 'bin/**/index.js'
-            ]
+            ],
+            'thresholds': {
+                'statements': 90,
+                'branches': 87.5,
+                'functions': 90,
+                'lines': 90
+            }
         }
     }
 });
