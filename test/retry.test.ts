@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { pollUntil, retry, RetryTimeoutError } from '../src/index.js';
+import { MaxRetryAttemptsReachedError, pollUntil, retry, RetryTimeoutError } from '../src/index.js';
 
 void describe('retry utilities', () => {
     it('retries transient failures and returns attempt metadata', async () => {
@@ -290,5 +290,182 @@ void describe('retry utilities', () => {
         ]
     ])('rejects a %s value beyond the Node timer limit', async (_optionName, options) => {
         await expect(retry(() => 'unused', options)).rejects.toBeInstanceOf(RangeError);
+    });
+
+    it.each([
+        [
+            'NEGATIVE_INFINITY maxRetryAttempts',
+            {
+                'timeoutMs': 100,
+                'maxRetryAttempts': Number.NEGATIVE_INFINITY
+            }
+        ],
+        [
+            'negative maxRetryAttempts',
+            {
+                'timeoutMs': 100,
+                'maxRetryAttempts': -1
+            }
+        ],
+        [
+            'zero maxRetryAttempts',
+            {
+                'timeoutMs': 100,
+                'maxRetryAttempts': 0
+            }
+        ]
+    ])('rejects a %s value', async (_optionName, options) => {
+        await expect(retry(() => 'unused', options)).rejects.toBeInstanceOf(RangeError);
+    });
+
+    it('throws MaxRetryAttemptsReachedError once the attempt limit is reached before the timeout', async () => {
+        const finalError = new Error('service remains unavailable');
+
+        const operation = vi.fn(() => {
+            throw finalError;
+        });
+
+        try {
+            await retry(operation, {
+                'timeoutMs': 10_000,
+                'initialIntervalMs': 0,
+                'maxRetryAttempts': 2
+            });
+
+            expect.unreachable('retry should reach the max retry attempts');
+        } catch (error) {
+            expect(error).toBeInstanceOf(MaxRetryAttemptsReachedError);
+
+            expect((error as MaxRetryAttemptsReachedError).attempts).toBe(3);
+
+            expect((error as MaxRetryAttemptsReachedError).lastError).toBe(finalError);
+        }
+    });
+
+    it('succeeds when an attempt within the maxRetryAttempts budget resolves before the timeout', async () => {
+        const operation = vi.fn()
+            .mockImplementationOnce(() => {
+                throw new Error('transient failure');
+            })
+            .mockReturnValue('created resource');
+
+        const result = await retry(operation, {
+            'timeoutMs': 100,
+            'initialIntervalMs': 0,
+            'maxRetryAttempts': 2
+        });
+
+        expect(result.value).toBe('created resource');
+
+        expect(result.attempts).toBe(2);
+    });
+
+    it('prioritizes the timeout deadline over maxRetryAttempts when both are exceeded together', async () => {
+        await expect(retry(() => {
+            throw new Error('transient failure');
+        }, {
+            'timeoutMs': 10,
+            'initialIntervalMs': 1,
+            'maxRetryAttempts': 1_000
+        })).rejects.toBeInstanceOf(RetryTimeoutError);
+    });
+
+    it('includes the operation context in the RetryTimeoutError message', async () => {
+        try {
+            await retry(() => {
+                throw new Error('transient failure');
+            }, {
+                'timeoutMs': 10,
+                'initialIntervalMs': 1,
+                'operationContext': 'create-resource'
+            });
+
+            expect.unreachable('retry should time out');
+        } catch (error) {
+            expect(error).toBeInstanceOf(RetryTimeoutError);
+
+            expect((error as RetryTimeoutError).context).toBe('create-resource');
+
+            expect((error as Error).message.startsWith('[create-resource] Retry operation timed out')).toBe(true);
+        }
+    });
+
+    it('includes the operation context in the MaxRetryAttemptsReachedError message', async () => {
+        try {
+            await retry(() => {
+                throw new Error('transient failure');
+            }, {
+                'timeoutMs': 10_000,
+                'initialIntervalMs': 0,
+                'maxRetryAttempts': 1,
+                'operationContext': 'poll-status'
+            });
+
+            expect.unreachable('retry should reach the max retry attempts');
+        } catch (error) {
+            expect(error).toBeInstanceOf(MaxRetryAttemptsReachedError);
+
+            expect((error as MaxRetryAttemptsReachedError).context).toBe('poll-status');
+
+            expect((error as Error).message.startsWith('[poll-status] Max number of retry attempts reached')).toBe(true);
+        }
+    });
+
+    it('omits the context prefix from the RetryTimeoutError message when operationContext is not provided', async () => {
+        try {
+            await retry(() => {
+                throw new Error('transient failure');
+            }, {
+                'timeoutMs': 10,
+                'initialIntervalMs': 1
+            });
+
+            expect.unreachable('retry should time out');
+        } catch (error) {
+            expect((error as RetryTimeoutError).context).toBeUndefined();
+
+            expect((error as Error).message.startsWith('[')).toBe(false);
+        }
+    });
+
+    it('carries the operation context through pollUntil into the RetryTimeoutError message', async () => {
+        const finalValue = { 'status': 'creating' };
+
+        try {
+            await pollUntil(() => finalValue, (value) => value.status === 'ready', {
+                'timeoutMs': 10,
+                'initialIntervalMs': 0,
+                'operationContext': 'wait-for-ready'
+            });
+
+            expect.unreachable('pollUntil should time out');
+        } catch (error) {
+            expect(error).toBeInstanceOf(RetryTimeoutError);
+
+            expect((error as RetryTimeoutError).context).toBe('wait-for-ready');
+
+            expect((error as Error).message.startsWith('[wait-for-ready] Retry operation timed out')).toBe(true);
+        }
+    });
+
+    it('carries the operation context through pollUntil into the MaxRetryAttemptsReachedError message', async () => {
+        const finalValue = { 'status': 'creating' };
+
+        try {
+            await pollUntil(() => finalValue, (value) => value.status === 'ready', {
+                'timeoutMs': 10_000,
+                'initialIntervalMs': 0,
+                'maxRetryAttempts': 1,
+                'operationContext': 'wait-for-ready'
+            });
+
+            expect.unreachable('pollUntil should reach the max retry attempts');
+        } catch (error) {
+            expect(error).toBeInstanceOf(MaxRetryAttemptsReachedError);
+
+            expect((error as MaxRetryAttemptsReachedError).context).toBe('wait-for-ready');
+
+            expect((error as Error).message.startsWith('[wait-for-ready] Max number of retry attempts reached')).toBe(true);
+        }
     });
 });
