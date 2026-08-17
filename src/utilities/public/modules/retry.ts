@@ -52,7 +52,7 @@ function resolveRetryOptions(options: RetryOptions): ResolvedRetryOptions {
     }
 
     if (maxRetryAttempts !== Number.POSITIVE_INFINITY && (!Number.isInteger(maxRetryAttempts) || maxRetryAttempts <= 0)) {
-        throw new RangeError('maxRetryAttempts must be a valid number and bigger than zero.');
+        throw new RangeError('maxRetryAttempts must be a positive integer or Infinity.');
     }
 
     return {
