@@ -39,3 +39,5 @@ export { default as ResourceTracker } from './harness/base/public/classes/resour
 export { RetryTimeoutError } from './utilities/public/errors/retryTimeoutError.js';
 
 export { PollPredicateMismatchError } from './utilities/public/errors/pollPredicateMismatchError.js';
+
+export { MaxRetryAttemptsReachedError } from './utilities/public/errors/maxRetryAttemptsReachedError.js';
