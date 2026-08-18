@@ -337,6 +337,7 @@ void describe('retry utilities', () => {
             expect(error).toBeInstanceOf(MaxRetryAttemptsReachedError);
 
             expect((error as MaxRetryAttemptsReachedError).attempts).toBe(3);
+            expect((error as Error).message).toBe('Max number of retry attempts reached (2) after 3 total attempts. Last error: service remains unavailable');
 
             expect((error as MaxRetryAttemptsReachedError).lastError).toBe(finalError);
         }
