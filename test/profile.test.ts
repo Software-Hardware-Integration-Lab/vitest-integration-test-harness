@@ -476,6 +476,18 @@ void describe('createEnvironmentProfile', () => {
         expect(Object.isFrozen(result.profile)).toBe(true);
     });
 
+    it('rejects fixtures that override core lifecycle fixtures', () => {
+        expect(() => createEnvironmentProfile({
+            'name': 'unsafe-fixture-profile',
+            'dependencyType': 'Database',
+            'riskLevel': 'Optional',
+            'readinessChecks': [],
+            'fixtures': {
+                'environment': void 0
+            } as never
+        })).toThrow('Profile fixtures cannot override the reserved \'environment\' fixture.');
+    });
+
     it('creates a frozen metadata snapshot without freezing caller-owned collections', () => {
         const requiredVariable: TestableEnvironmentVariable = { 'key': 'API_KEY' };
 

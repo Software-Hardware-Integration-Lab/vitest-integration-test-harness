@@ -4,9 +4,21 @@ import type EnvironmentProfileResult from '../interfaces/environmentProfileResul
 import type EnvironmentReadiness from '../interfaces/environmentReadiness.js';
 import type IntegrationSuiteOptions from '../interfaces/integrationSuiteOptions.js';
 import type IntegrationTestFixtures from '../interfaces/integrationTestFixtures.js';
+import { reservedProfileFixtureNames } from '../interfaces/profileFixtures.js';
 import { evaluateEnvironmentVariables, evaluateReadiness } from './environment.js';
 import { createSuiteRunner } from './integrationSuite.js';
 import { integrationTest } from './integrationTestLifecycle.js';
+import deepFreeze from '../../../../utilities/private/modules/deepFreeze.js';
+
+const reservedFixtureNames = new Set<string>(reservedProfileFixtureNames);
+
+function assertNoReservedFixtureNames(fixtures: object | undefined): void {
+    const reservedFixtureName = Object.keys(fixtures ?? {}).find((fixtureName) => reservedFixtureNames.has(fixtureName));
+
+    if (reservedFixtureName) {
+        throw new Error(`Profile fixtures cannot override the reserved '${ reservedFixtureName }' fixture.`);
+    }
+}
 
 /**
  * Creates an integration environment profile test API and suite runner preconfigured with
@@ -17,7 +29,8 @@ import { integrationTest } from './integrationTestLifecycle.js';
 export function createEnvironmentProfile<TFixtures extends object = object>(profile: EnvironmentProfile<TFixtures>): EnvironmentProfileResult<TFixtures> {
     type EnvironmentFixtures = IntegrationTestFixtures & TFixtures;
 
-    const profileSnapshot = Object.freeze({ ...profile });
+    assertNoReservedFixtureNames(profile.fixtures);
+
     const { fixtures, ...profileMetadata } = profile;
 
     const profileSnapshot = Object.freeze({
@@ -38,7 +51,6 @@ export function createEnvironmentProfile<TFixtures extends object = object>(prof
         'environment': [
             // eslint-disable-next-line no-empty-pattern -- Vitest fixture functions require an object-destructured context.
             async ({ }, use): Promise<void> => {
-                const envReadiness = evaluateEnvironmentVariables(profile.requiredEnvironmentVariables);
                 const envReadiness = evaluateEnvironmentVariables(profileSnapshot.requiredEnvironmentVariables);
 
                 if (!envReadiness.ready) {
@@ -47,8 +59,6 @@ export function createEnvironmentProfile<TFixtures extends object = object>(prof
                     return;
                 }
 
-                if (profile.readinessChecks.length > 0) {
-                    const checksReadiness = await evaluateReadiness(profile.readinessChecks);
                 if (profileSnapshot.readinessChecks.length > 0) {
                     const checksReadiness = await evaluateReadiness(profileSnapshot.readinessChecks);
 
