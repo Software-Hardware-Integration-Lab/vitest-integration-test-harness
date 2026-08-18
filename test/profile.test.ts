@@ -642,11 +642,11 @@ profileSuiteTest('runs profile suite lifecycle with custom fixtures', ({ customG
 
 let missingVariableReadinessCheckCallCount = 0;
 
-const missingVariableReadinessCheck = (): boolean => {
+function missingVariableReadinessCheck(): boolean {
     missingVariableReadinessCheckCallCount += 1;
 
     return true;
-};
+}
 
 const unreadyProfileWithChecks = createEnvironmentProfile({
     'name': 'missing-vars-profile',
