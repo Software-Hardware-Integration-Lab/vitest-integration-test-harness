@@ -59,12 +59,49 @@ void describe('evaluateEnvironmentVariables', () => {
             { 'PORT': '8080' }
         );
 
-        expect(customCheckSpy).toHaveBeenCalled();
+        expect(customCheckSpy).toHaveBeenCalledWith('8080');
 
         expect(result).toEqual({
             'ready': true,
             'reason': void 0
         });
+    });
+
+    it('passes the environment variable value to the check function for validation logic', () => {
+        const checkFn = vi.fn((value: string): EnvironmentVariableCheckResult => ({
+            'success': Number(value) >= 1000 && Number(value) <= 9000,
+            'reason': 'Port must be between 1000 and 9000'
+        }));
+
+        const validResult = evaluateEnvironmentVariables(
+            [
+                {
+                    'key': 'APP_PORT',
+                    'check': checkFn
+                }
+            ],
+            { 'APP_PORT': '3000' }
+        );
+
+        expect(checkFn).toHaveBeenCalledWith('3000');
+
+        expect(validResult.ready).toBe(true);
+
+        const invalidResult = evaluateEnvironmentVariables(
+            [
+                {
+                    'key': 'APP_PORT',
+                    'check': checkFn
+                }
+            ],
+            { 'APP_PORT': '9999' }
+        );
+
+        expect(checkFn).toHaveBeenCalledWith('9999');
+
+        expect(invalidResult.ready).toBe(false);
+
+        expect(invalidResult.reason).toBe('APP_PORT: Port must be between 1000 and 9000');
     });
 
     it('reports unready with custom reason when custom check function returns an object with success: false', () => {

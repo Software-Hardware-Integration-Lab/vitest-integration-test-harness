@@ -31,7 +31,7 @@ export function evaluateEnvironmentVariables(
             failures.set(envVar.key, 'Variable is empty');
         } else if (envVar.check) {
             try {
-                const checkResult = envVar.check();
+                const checkResult = envVar.check(value);
 
                 if (!checkResult.success) {
                     // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing -- Fallback to default message when customReason is an empty string
