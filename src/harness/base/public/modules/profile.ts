@@ -12,7 +12,7 @@ import { integrationTest } from './integrationTestLifecycle.js';
  * Creates an integration environment profile test API and suite runner preconfigured with
  * environment variable schemas, ordered readiness checks, and optional custom fixtures.
  * @param profile Profile configuration and metadata.
- * @returns Configured `test` and `suite` functions along with immutable `profile` metadata.
+ * @returns Configured `test` and `suite` functions along with a shallow-frozen `profile` metadata snapshot.
  */
 export function createEnvironmentProfile<TFixtures extends object = object>(profile: EnvironmentProfile<TFixtures>): EnvironmentProfileResult<TFixtures> {
     type EnvironmentFixtures = IntegrationTestFixtures & TFixtures;
