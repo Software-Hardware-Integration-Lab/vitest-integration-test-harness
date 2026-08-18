@@ -18,7 +18,7 @@ export default interface EnvironmentProfile<TFixtures extends object = object> {
     'readinessChecks': readonly ReadinessCheck[];
     /** Opt-in required environment variable names evaluated before readiness checks. */
     'requiredEnvironmentVariables'?: readonly TestableEnvironmentVariable[];
-    /** Custom fixtures to extend the test context. */
+    /** Custom fixtures to extend the test context. Vitest may annotate these definitions during extension. */
     'fixtures'?: ProfileFixtures<TFixtures>;
     /** Consumer-defined classification tags. */
     'tags'?: readonly string[];

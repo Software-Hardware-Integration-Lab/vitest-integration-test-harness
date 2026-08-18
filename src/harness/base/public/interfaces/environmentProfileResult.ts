@@ -11,6 +11,9 @@ export default interface EnvironmentProfileResult<TFixtures extends object = obj
     'test': TestAPI<IntegrationTestFixtures & TFixtures>;
     /** Suite factory creating file-scoped lifecycles with profile readiness and custom fixtures. */
     'suite': (options: IntegrationSuiteOptions) => TestAPI<IntegrationTestFixtures & TFixtures>;
-    /** Readonly metadata and configuration of the profile. */
+    /**
+     * Readonly profile metadata snapshot. Fixture definitions retain their original mutable reference because Vitest
+     * annotates them while extending the test API.
+     */
     'profile': Readonly<EnvironmentProfile<TFixtures>>;
 }
