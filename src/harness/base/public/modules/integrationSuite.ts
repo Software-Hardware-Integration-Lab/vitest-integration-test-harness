@@ -1,6 +1,5 @@
 import type { TestAPI } from 'vitest';
 import ResourceTracker from '../classes/resourceTracker.js';
-import type EnvironmentReadiness from '../interfaces/environmentReadiness.js';
 import type IntegrationSuiteContext from '../interfaces/integrationSuiteContext.js';
 import type IntegrationSuiteOptions from '../interfaces/integrationSuiteOptions.js';
 import type IntegrationTestFixtures from '../interfaces/integrationTestFixtures.js';
@@ -14,11 +13,11 @@ function toError(error: unknown): Error {
 
 /**
  * Creates a test API with paired file-scoped setup and cleanup bound to a specific base test runner.
- * @param baseTest Base test runner that supplies at least an `environment` readiness fixture.
+ * @param baseTest Base integration test runner that supplies standard integration test fixtures including readiness gating.
  * @param options File-scoped lifecycle configuration.
  * @returns Vitest test API whose suite lifecycle runs once per test file.
  */
-export function createSuiteRunner<TFixtures extends { 'environment': EnvironmentReadiness }>(
+export function createSuiteRunner<TFixtures extends IntegrationTestFixtures>(
     baseTest: TestAPI<TFixtures>,
     options: IntegrationSuiteOptions
 ): TestAPI<TFixtures> {

@@ -523,7 +523,7 @@ const readyLifecycleProfile = createEnvironmentProfile<{
     ],
     'fixtures': {
         'customGreeting': [
-            // eslint-disable-next-line no-empty-pattern -- Vitest fixture destructuring requirement
+            // eslint-disable-next-line no-empty-pattern -- Vitest fixture functions require an object-destructured context.
             async ({ }, use: (greeting: string) => Promise<void>): Promise<void> => {
                 await use('hello-from-profile');
             },
@@ -555,7 +555,7 @@ const profileSuiteTest = readyLifecycleProfile.suite({
             suiteOrder.push('profile-suite-cleanup');
         });
 
-        return () => {
+        return (): void => {
             suiteOrder.push('profile-suite-paired-cleanup');
         };
     }

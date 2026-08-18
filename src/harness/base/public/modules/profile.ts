@@ -25,7 +25,7 @@ export function createEnvironmentProfile<TFixtures extends object = object>(prof
         };
     }>({
         'environment': [
-            // eslint-disable-next-line no-empty-pattern -- Vitest fixture destructuring requirement
+            // eslint-disable-next-line no-empty-pattern -- Vitest fixture functions require an object-destructured context.
             async ({ }, use): Promise<void> => {
                 const envReadiness = evaluateEnvironmentVariables(profile.requiredEnvironmentVariables);
 

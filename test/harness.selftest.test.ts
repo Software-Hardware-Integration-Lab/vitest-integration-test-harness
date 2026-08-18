@@ -6,25 +6,7 @@ import { evaluateReadiness } from '../src/harness/base/public/modules/environmen
 import ResourceCleanupError from '../src/harness/base/public/errors/resourceCleanupError.js';
 import ResourceTracker from '../src/harness/base/public/classes/resourceTracker.js';
 import { integrationTest } from '../src/harness/base/public/modules/integrationTestLifecycle.js';
-import { integrationSuite } from '../src/harness/base/public/modules/integrationSuite.js';
 import { spawnSync, type SpawnSyncReturns } from 'node:child_process';
-
-const suiteLifecycleOrder: string[] = [];
-
-const suiteTest = integrationSuite({
-    'name': 'in-process suite lifecycle',
-    'setup': ({ resources }): () => void => {
-        suiteLifecycleOrder.push('setup');
-
-        resources.track('additional suite state', () => { suiteLifecycleOrder.push('additional cleanup'); });
-
-        return () => { suiteLifecycleOrder.push('paired cleanup'); };
-    }
-});
-
-suiteTest('runs suite setup before the test body', () => {
-    expect(suiteLifecycleOrder).toEqual(['setup']);
-});
 
 const unreadyIntegrationTest = integrationTest.extend<{
     '$file': {
