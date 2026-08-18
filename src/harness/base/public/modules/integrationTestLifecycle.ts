@@ -16,7 +16,7 @@ import ResourceTracker from '../classes/resourceTracker.js';
  *
  * export const test = integrationTest.extend({
  *     'environment': [
- *         async (_context, use): Promise<void> => {
+ *         async ({ }, use): Promise<void> => {
  *             await use(await evaluateReadiness([
  *                 {
  *                     'name': 'Approved tenant configured',
