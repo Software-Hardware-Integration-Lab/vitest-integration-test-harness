@@ -9,4 +9,6 @@ export interface RetryOptions {
     'jitterRatio'?: number;
     'signal'?: AbortSignal;
     'shouldRetry'?: (error: unknown, attempt: number) => boolean;
+    'maxRetryAttempts'?: number;
+    'operationContext'?: string;
 }

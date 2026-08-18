@@ -3,6 +3,7 @@ import { PollPredicateMismatchError } from '../errors/pollPredicateMismatchError
 import { RetryTimeoutError } from '../errors/retryTimeoutError.js';
 import type { PollResult } from '../interfaces/pollResult.js';
 import type { RetryOptions } from '../interfaces/retryOptions.js';
+import { MaxRetryAttemptsReachedError } from '../errors/maxRetryAttemptsReachedError.js';
 
 /** Largest delay accepted by Node.js timer APIs without being clamped to approximately one millisecond. */
 const maximumTimerDelayMs = 2_147_483_647;
@@ -15,6 +16,8 @@ interface ResolvedRetryOptions {
     'jitterRatio': number;
     'signal': AbortSignal | undefined;
     'shouldRetry': (error: unknown, attempt: number) => boolean;
+    'maxRetryAttempts': number;
+    'operationContext'?: string;
 }
 
 function resolveRetryOptions(options: RetryOptions): ResolvedRetryOptions {
@@ -25,6 +28,8 @@ function resolveRetryOptions(options: RetryOptions): ResolvedRetryOptions {
     const backoffMultiplier = options.backoffMultiplier ?? 1;
 
     const jitterRatio = options.jitterRatio ?? 0;
+
+    const maxRetryAttempts = options.maxRetryAttempts ?? Number.POSITIVE_INFINITY;
 
     if (!Number.isInteger(options.timeoutMs) || options.timeoutMs <= 0 || options.timeoutMs > maximumTimerDelayMs) {
         throw new RangeError(`timeoutMs must be an integer from 1 through ${ maximumTimerDelayMs }.`);
@@ -46,6 +51,10 @@ function resolveRetryOptions(options: RetryOptions): ResolvedRetryOptions {
         throw new RangeError('jitterRatio must be a finite number from 0 through 1.');
     }
 
+    if (maxRetryAttempts !== Number.POSITIVE_INFINITY && (!Number.isInteger(maxRetryAttempts) || maxRetryAttempts <= 0)) {
+        throw new RangeError('maxRetryAttempts must be a positive integer or Infinity.');
+    }
+
     return {
         'timeoutMs': options.timeoutMs,
         initialIntervalMs,
@@ -53,7 +62,9 @@ function resolveRetryOptions(options: RetryOptions): ResolvedRetryOptions {
         backoffMultiplier,
         jitterRatio,
         'signal': options.signal,
-        'shouldRetry': options.shouldRetry ?? (() : boolean => true)
+        'shouldRetry': options.shouldRetry ?? ((): boolean => true),
+        maxRetryAttempts,
+        'operationContext': options.operationContext
     };
 }
 
@@ -145,12 +156,16 @@ export async function retry<T>(
         }
 
         if (remainingMs(deadline) <= 0) {
-            throw new RetryTimeoutError(attempts, lastError);
+            throw new RetryTimeoutError(attempts, lastError, resolvedOptions.operationContext);
+        }
+
+        if (attempts > resolvedOptions.maxRetryAttempts) {
+            throw new MaxRetryAttemptsReachedError(attempts, lastError, resolvedOptions.operationContext);
         }
 
         attempts += 1;
 
-        const timeoutError = new RetryTimeoutError(attempts, lastError);
+        const timeoutError = new RetryTimeoutError(attempts, lastError, resolvedOptions.operationContext);
 
         const timeoutController = new AbortController();
 
@@ -197,7 +212,7 @@ export async function retry<T>(
         const remaining = remainingMs(deadline);
 
         if (remaining <= 0) {
-            throw new RetryTimeoutError(attempts, lastError);
+            throw new RetryTimeoutError(attempts, lastError, resolvedOptions.operationContext);
         }
 
         const jitteredDelayMs = addJitter(delayMs, resolvedOptions.jitterRatio);
