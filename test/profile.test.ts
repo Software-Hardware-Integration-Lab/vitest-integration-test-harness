@@ -640,6 +640,14 @@ profileSuiteTest('runs profile suite lifecycle with custom fixtures', ({ customG
     expect(suiteOrder).toEqual(['profile-suite-setup']);
 });
 
+let missingVariableReadinessCheckCallCount = 0;
+
+const missingVariableReadinessCheck = (): boolean => {
+    missingVariableReadinessCheckCallCount += 1;
+
+    return true;
+};
+
 const unreadyProfileWithChecks = createEnvironmentProfile({
     'name': 'missing-vars-profile',
     'dependencyType': 'InternalApi',
@@ -648,15 +656,17 @@ const unreadyProfileWithChecks = createEnvironmentProfile({
     'readinessChecks': [
         {
             'name': 'unreachable-check',
-            'verify': (): boolean => {
-                throw new Error('Should never be called');
-            }
+            'verify': missingVariableReadinessCheck
         }
     ]
 });
 
 unreadyProfileWithChecks.test('skips test when required environment variables are missing', () => {
     expect.unreachable('Test should be skipped by readinessGate due to missing env vars');
+});
+
+it('does not run readiness checks when required environment variables are missing', () => {
+    expect(missingVariableReadinessCheckCallCount).toBe(0);
 });
 
 const unreadyCheckProfile = createEnvironmentProfile({
