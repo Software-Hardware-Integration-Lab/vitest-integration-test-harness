@@ -156,16 +156,16 @@ export async function retry<T>(
         }
 
         if (remainingMs(deadline) <= 0) {
-            throw new RetryTimeoutError(attempts, lastError, options.operationContext);
+            throw new RetryTimeoutError(attempts, lastError, resolvedOptions.operationContext);
         }
 
         if (attempts > resolvedOptions.maxRetryAttempts) {
-            throw new MaxRetryAttemptsReachedError(attempts, lastError, options.operationContext);
+            throw new MaxRetryAttemptsReachedError(attempts, lastError, resolvedOptions.operationContext);
         }
 
         attempts += 1;
 
-        const timeoutError = new RetryTimeoutError(attempts, lastError);
+        const timeoutError = new RetryTimeoutError(attempts, lastError, resolvedOptions.operationContext);
 
         const timeoutController = new AbortController();
 
@@ -212,7 +212,7 @@ export async function retry<T>(
         const remaining = remainingMs(deadline);
 
         if (remaining <= 0) {
-            throw new RetryTimeoutError(attempts, lastError);
+            throw new RetryTimeoutError(attempts, lastError, resolvedOptions.operationContext);
         }
 
         const jitteredDelayMs = addJitter(delayMs, resolvedOptions.jitterRatio);
