@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterAll, describe, expect, it, vi } from 'vitest';
 import {
     createEnvironmentProfile,
     evaluateEnvironmentVariables,
@@ -665,7 +665,7 @@ unreadyProfileWithChecks.test('skips test when required environment variables ar
     expect.unreachable('Test should be skipped by readinessGate due to missing env vars');
 });
 
-it('does not run readiness checks when required environment variables are missing', () => {
+afterAll(() => {
     expect(missingVariableReadinessCheckCallCount).toBe(0);
 });
 
