@@ -1,4 +1,6 @@
-export { evaluateReadiness } from './harness/base/public/modules/environment.js';
+export { evaluateEnvironmentVariables, evaluateReadiness } from './harness/base/public/modules/environment.js';
+
+export { createEnvironmentProfile } from './harness/base/public/modules/profile.js';
 
 export { pollUntil, retry } from './utilities/public/modules/retry.js';
 
@@ -9,6 +11,20 @@ export type { default as DiagnosticEntry } from './harness/base/public/interface
 export type { default as DiagnosticRedactionRule } from './harness/base/public/interfaces/diagnosticRedactionRule.js';
 
 export type { default as DiagnosticReporter } from './harness/base/public/interfaces/diagnosticReporter.js';
+
+export type { DependencyType } from './harness/base/public/interfaces/dependencyType.js';
+
+export type { RiskLevel } from './harness/base/public/interfaces/riskLevel.js';
+
+export type { default as TestableEnvironmentVariable } from './harness/base/public/interfaces/testableEnvironmentVariable.js';
+
+export type { EnvironmentVariableCheckResult } from './harness/base/public/interfaces/environmentVariableCheckResult.js';
+
+export type { default as EnvironmentProfile } from './harness/base/public/interfaces/environmentProfile.js';
+
+export type { ProfileFixtures } from './harness/base/public/interfaces/profileFixtures.js';
+
+export type { default as EnvironmentProfileResult } from './harness/base/public/interfaces/environmentProfileResult.js';
 
 export type { default as EnvironmentReadiness } from './harness/base/public/interfaces/environmentReadiness.js';
 
@@ -28,7 +44,7 @@ export type { RetryOptions } from './utilities/public/interfaces/retryOptions.js
 
 export { integrationTest } from './harness/base/public/modules/integrationTestLifecycle.js';
 
-export { integrationSuite } from './harness/base/public/modules/integrationSuite.js';
+export { createSuiteRunner, integrationSuite } from './harness/base/public/modules/integrationSuite.js';
 
 export { default as ResourceCleanupError } from './harness/base/public/errors/resourceCleanupError.js';
 
