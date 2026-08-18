@@ -3,7 +3,9 @@
  */
 export abstract class ScopedError extends Error {
     protected constructor(message: string, context?: string) {
-        const errorMessage = context ? `[${ context }] ${ message }` : message;
+        const trimmedContext = context?.trim();
+
+        const errorMessage = trimmedContext ? `[${ trimmedContext }] ${ message }` : message;
 
         super(errorMessage);
     }
