@@ -42,6 +42,24 @@ void describe('deepFreeze', () => {
         expect(deepFreeze(null)).toBe(null);
     });
 
+    test('treats functions as terminal values', () => {
+        function callback(): boolean {
+            return true;
+        }
+
+        const value = { callback };
+
+        const result = deepFreeze(value);
+
+        expect(result).toBe(value);
+
+        expect(result.callback).toBe(callback);
+
+        expect(Object.isFrozen(result)).toBe(true);
+
+        expect(Object.isFrozen(callback)).toBe(false);
+    });
+
     test('throws when detecting circular references', () => {
         interface A {
             'other'?: B;

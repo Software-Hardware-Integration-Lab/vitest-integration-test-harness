@@ -1,10 +1,10 @@
 /**
  * Determine whether a value can contain nested properties that should be traversed.
  * @param value - The value to inspect.
- * @returns `true` when the value is an object or function.
+ * @returns `true` when the value is a non-null object.
  */
 function isFreezable(value: unknown): value is Record<string, unknown> {
-    return value !== null && (typeof value === 'object' || typeof value === 'function');
+    return value !== null && typeof value === 'object';
 }
 
 /**
