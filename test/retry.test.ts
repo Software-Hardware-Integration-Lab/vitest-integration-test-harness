@@ -313,9 +313,41 @@ void describe('retry utilities', () => {
                 'timeoutMs': 100,
                 'maxRetryAttempts': 0
             }
+        ],
+        [
+            'NaN maxRetryAttempts',
+            {
+                'timeoutMs': 100,
+                'maxRetryAttempts': Number.NaN
+            }
+        ],
+        [
+            'fractional maxRetryAttempts',
+            {
+                'timeoutMs': 100,
+                'maxRetryAttempts': 1.5
+            }
         ]
     ])('rejects a %s value', async (_optionName, options) => {
         await expect(retry(() => 'unused', options)).rejects.toBeInstanceOf(RangeError);
+    });
+
+    it('accepts POSITIVE_INFINITY for maxRetryAttempts and retries until timeout', async () => {
+        const operation = vi.fn()
+            .mockImplementationOnce(() => {
+                throw new Error('transient failure');
+            })
+            .mockReturnValue('created resource');
+
+        const result = await retry(operation, {
+            'timeoutMs': 100,
+            'initialIntervalMs': 0,
+            'maxRetryAttempts': Number.POSITIVE_INFINITY
+        });
+
+        expect(result.value).toBe('created resource');
+
+        expect(result.attempts).toBe(2);
     });
 
     it('throws MaxRetryAttemptsReachedError once the attempt limit is reached before the timeout', async () => {
@@ -336,7 +368,10 @@ void describe('retry utilities', () => {
         } catch (error) {
             expect(error).toBeInstanceOf(MaxRetryAttemptsReachedError);
 
+            expect(operation).toHaveBeenCalledTimes(3);
+
             expect((error as MaxRetryAttemptsReachedError).attempts).toBe(3);
+
             expect((error as Error).message).toBe('Max number of retry attempts reached (2) after 3 total attempts. Last error: service remains unavailable');
 
             expect((error as MaxRetryAttemptsReachedError).lastError).toBe(finalError);
@@ -424,6 +459,24 @@ void describe('retry utilities', () => {
             expect.unreachable('retry should time out');
         } catch (error) {
             expect((error as RetryTimeoutError).context).toBeUndefined();
+
+            expect((error as Error).message.startsWith('[')).toBe(false);
+        }
+    });
+
+    it('omits the context prefix from the RetryTimeoutError message when operationContext is whitespace', async () => {
+        try {
+            await retry(() => {
+                throw new Error('transient failure');
+            }, {
+                'timeoutMs': 10,
+                'initialIntervalMs': 1,
+                'operationContext': '   '
+            });
+
+            expect.unreachable('retry should time out');
+        } catch (error) {
+            expect((error as RetryTimeoutError).context).toBe('   ');
 
             expect((error as Error).message.startsWith('[')).toBe(false);
         }
