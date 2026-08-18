@@ -476,6 +476,67 @@ void describe('createEnvironmentProfile', () => {
         expect(Object.isFrozen(result.profile)).toBe(true);
     });
 
+    it('creates a frozen metadata snapshot without freezing caller-owned collections', () => {
+        const requiredVariable: TestableEnvironmentVariable = { 'key': 'API_KEY' };
+
+        const readinessCheck = {
+            'name': 'ready',
+            'verify': (): boolean => true
+        };
+
+        const readinessChecks = [readinessCheck];
+
+        const requiredEnvironmentVariables = [requiredVariable];
+
+        const tags = ['database'];
+
+        const profileDefinition: EnvironmentProfile = {
+            'name': 'isolated-profile',
+            'dependencyType': 'Database',
+            'riskLevel': 'Optional',
+            readinessChecks,
+            requiredEnvironmentVariables,
+            tags
+        };
+
+        const result = createEnvironmentProfile(profileDefinition);
+
+        expect(Object.isFrozen(profileDefinition.readinessChecks)).toBe(false);
+
+        expect(Object.isFrozen(readinessCheck)).toBe(false);
+
+        expect(Object.isFrozen(profileDefinition.requiredEnvironmentVariables)).toBe(false);
+
+        expect(Object.isFrozen(requiredVariable)).toBe(false);
+
+        expect(Object.isFrozen(profileDefinition.tags)).toBe(false);
+
+        expect(Object.isFrozen(result.profile.readinessChecks)).toBe(true);
+
+        expect(Object.isFrozen(result.profile.readinessChecks[0])).toBe(true);
+
+        expect(Object.isFrozen(result.profile.requiredEnvironmentVariables)).toBe(true);
+
+        expect(Object.isFrozen(result.profile.requiredEnvironmentVariables?.[0])).toBe(true);
+
+        expect(Object.isFrozen(result.profile.tags)).toBe(true);
+
+        readinessChecks.push({
+            'name': 'mutated',
+            'verify': (): boolean => false
+        });
+
+        requiredEnvironmentVariables.push({ 'key': 'MUTATED_KEY' });
+
+        tags.push('mutated');
+
+        expect(result.profile.readinessChecks).toHaveLength(1);
+
+        expect(result.profile.requiredEnvironmentVariables).toHaveLength(1);
+
+        expect(result.profile.tags).toEqual(['database']);
+    });
+
     it('verifies typescript type exports and contracts', () => {
         const dependency: DependencyType = 'ExternalApi';
 

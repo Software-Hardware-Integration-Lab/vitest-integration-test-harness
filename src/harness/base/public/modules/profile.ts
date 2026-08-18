@@ -18,6 +18,17 @@ export function createEnvironmentProfile<TFixtures extends object = object>(prof
     type EnvironmentFixtures = IntegrationTestFixtures & TFixtures;
 
     const profileSnapshot = Object.freeze({ ...profile });
+    const { fixtures, ...profileMetadata } = profile;
+
+    const profileSnapshot = Object.freeze({
+        ...deepFreeze({
+            ...profileMetadata,
+            'readinessChecks': profile.readinessChecks.map((check) => ({ ...check })),
+            'requiredEnvironmentVariables': profile.requiredEnvironmentVariables?.map((variable) => ({ ...variable })),
+            'tags': profile.tags ? [...profile.tags] : void 0
+        }),
+        fixtures
+    });
 
     let profileTest = integrationTest.extend<{
         '$file': {
@@ -28,6 +39,7 @@ export function createEnvironmentProfile<TFixtures extends object = object>(prof
             // eslint-disable-next-line no-empty-pattern -- Vitest fixture functions require an object-destructured context.
             async ({ }, use): Promise<void> => {
                 const envReadiness = evaluateEnvironmentVariables(profile.requiredEnvironmentVariables);
+                const envReadiness = evaluateEnvironmentVariables(profileSnapshot.requiredEnvironmentVariables);
 
                 if (!envReadiness.ready) {
                     await use(envReadiness);
@@ -37,6 +49,8 @@ export function createEnvironmentProfile<TFixtures extends object = object>(prof
 
                 if (profile.readinessChecks.length > 0) {
                     const checksReadiness = await evaluateReadiness(profile.readinessChecks);
+                if (profileSnapshot.readinessChecks.length > 0) {
+                    const checksReadiness = await evaluateReadiness(profileSnapshot.readinessChecks);
 
                     await use(checksReadiness);
 
