@@ -5,7 +5,7 @@
  * cleanup diagnostics when a cleanup fails.
  */
 
-import { integrationTest } from '../../src/harness/base/public/modules/integrationTestLifecycle.js';
+import { integrationTest } from '../../src/index.js';
 
 integrationTest('emits cleanup failure diagnostics', ({ resources }) => {
     resources.track('my cloud resource', () => {
