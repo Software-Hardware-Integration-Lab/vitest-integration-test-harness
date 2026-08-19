@@ -1,9 +1,9 @@
 import { setTimeout as sleep } from 'node:timers/promises';
-import { PollPredicateMismatchError } from '../errors/pollPredicateMismatchError.js';
-import { RetryTimeoutError } from '../errors/retryTimeoutError.js';
 import type { PollResult } from '../interfaces/pollResult.js';
 import type { RetryOptions } from '../interfaces/retryOptions.js';
 import { MaxRetryAttemptsReachedError } from '../errors/maxRetryAttemptsReachedError.js';
+import { PollPredicateMismatchError } from '../errors/pollPredicateMismatchError.js';
+import { RetryTimeoutError } from '../errors/retryTimeoutError.js';
 
 /** Largest delay accepted by Node.js timer APIs without being clamped to approximately one millisecond. */
 const maximumTimerDelayMs = 2_147_483_647;

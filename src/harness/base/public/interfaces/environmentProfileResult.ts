@@ -1,7 +1,7 @@
 import type { TestAPI } from 'vitest';
-import type IntegrationTestFixtures from './integrationTestFixtures.js';
-import type IntegrationSuiteOptions from './integrationSuiteOptions.js';
 import type EnvironmentProfile from './environmentProfile.js';
+import type IntegrationSuiteOptions from './integrationSuiteOptions.js';
+import type IntegrationTestFixtures from './integrationTestFixtures.js';
 
 /**
  * Result returned by `createEnvironmentProfile` containing preconfigured test and suite APIs and profile metadata.

@@ -1,8 +1,8 @@
 import type { TestAPI } from 'vitest';
-import ResourceTracker from '../classes/resourceTracker.js';
 import type IntegrationSuiteContext from '../interfaces/integrationSuiteContext.js';
 import type IntegrationSuiteOptions from '../interfaces/integrationSuiteOptions.js';
 import type IntegrationTestFixtures from '../interfaces/integrationTestFixtures.js';
+import ResourceTracker from '../classes/resourceTracker.js';
 import { integrationTest } from './integrationTestLifecycle.js';
 
 function toError(error: unknown): Error {

@@ -1,12 +1,10 @@
-import { type TestContext, afterEach, describe, expect, it, vi } from 'vitest';
-import DiagnosticsRecorder from '../src/harness/base/private/classes/diagnostics.js';
-import type FailureDiagnosticsPayload from '../src/harness/base/public/interfaces/failureDiagnosticsPayload.js';
-import type EnvironmentReadiness from '../src/harness/base/public/interfaces/environmentReadiness.js';
-import { evaluateReadiness } from '../src/harness/base/public/modules/environment.js';
-import ResourceCleanupError from '../src/harness/base/public/errors/resourceCleanupError.js';
-import ResourceTracker from '../src/harness/base/public/classes/resourceTracker.js';
-import { integrationTest } from '../src/harness/base/public/modules/integrationTestLifecycle.js';
 import { spawnSync, type SpawnSyncReturns } from 'node:child_process';
+import { type TestContext, afterEach, describe, expect, it, vi } from 'vitest';
+import type FailureDiagnosticsPayload from '../src/harness/base/public/interfaces/failureDiagnosticsPayload.js';
+import DiagnosticsRecorder from '../src/harness/base/private/classes/diagnostics.js';
+import ResourceTracker from '../src/harness/base/public/classes/resourceTracker.js';
+import ResourceCleanupError from '../src/harness/base/public/errors/resourceCleanupError.js';
+import { evaluateReadiness, integrationTest, type EnvironmentReadiness } from '../src/index.js';
 
 const unreadyIntegrationTest = integrationTest.extend<{
     '$file': {

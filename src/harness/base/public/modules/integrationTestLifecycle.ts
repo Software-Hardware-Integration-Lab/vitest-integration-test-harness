@@ -1,6 +1,6 @@
 import { test as baseTest, type TestContext } from 'vitest';
-import DiagnosticsRecorder from '../../private/classes/diagnostics.js';
 import type IntegrationTestFixtures from '../interfaces/integrationTestFixtures.js';
+import DiagnosticsRecorder from '../../private/classes/diagnostics.js';
 import ResourceTracker from '../classes/resourceTracker.js';
 
 /**

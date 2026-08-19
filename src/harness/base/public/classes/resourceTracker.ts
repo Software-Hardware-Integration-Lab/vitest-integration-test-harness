@@ -1,6 +1,6 @@
-import ResourceCleanupError from '../errors/resourceCleanupError.js';
 import type TrackedResource from '../../private/interfaces/trackedResource.js';
 import type ResourceCleanupFailure from '../interfaces/resourceCleanupFailure.js';
+import ResourceCleanupError from '../errors/resourceCleanupError.js';
 
 /**
  * Tracks resources created or modified during a single test so they can be reliably restored afterward, regardless
