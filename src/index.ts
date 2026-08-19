@@ -5,61 +5,70 @@ export { evaluateReadiness } from './harness/base/public/environment/evaluateRea
 export { evaluateEnvironmentVariables } from './harness/base/public/environment/evaluateEnvironmentVariables.js';
 
 export type {
+    EnvironmentReadiness,
     EnvironmentVariableCheckResult,
-    TestableEnvironmentVariable,
-    EnvironmentReadiness
+    ReadinessCheck,
+    TestableEnvironmentVariable
 } from './harness/base/public/environment/environmentTypes.js';
 
 // #endregion Environment
 
-export { createEnvironmentProfile } from './harness/base/public/modules/profile.js';
+// #region Retry
 
-export { pollUntil, retry } from './utilities/public/modules/retry.js';
+export { pollUntil, retry } from './utilities/public/retry/retry.js';
 
-export type { default as Diagnostics } from './harness/base/public/interfaces/diagnostics.js';
+export { RetryTimeoutError } from './utilities/public/retry/errors/retryTimeoutError.js';
 
-export type { default as DiagnosticEntry } from './harness/base/public/interfaces/diagnosticEntry.js';
+export { PollPredicateMismatchError } from './utilities/public/retry/errors/pollPredicateMismatchError.js';
 
-export type { default as DiagnosticRedactionRule } from './harness/base/public/interfaces/diagnosticRedactionRule.js';
+export { MaxRetryAttemptsReachedError } from './utilities/public/retry/errors/maxRetryAttemptsReachedError.js';
 
-export type { default as DiagnosticReporter } from './harness/base/public/interfaces/diagnosticReporter.js';
+// #endregion Retry
 
-export type { DependencyType } from './harness/base/public/interfaces/dependencyType.js';
+// #region Integration
 
-export type { RiskLevel } from './harness/base/public/interfaces/riskLevel.js';
+export { integrationTest } from './harness/base/public/integration/integrationTestLifecycle.js';
 
-export type { default as EnvironmentProfile } from './harness/base/public/interfaces/environmentProfile.js';
+export { createSuiteRunner } from './harness/base/public/integration/integrationSuite.js';
 
-export type { ProfileFixtures } from './harness/base/public/interfaces/profileFixtures.js';
+export { integrationSuite } from './harness/base/public/integration/integrationSuite.js';
 
-export type { default as EnvironmentProfileResult } from './harness/base/public/interfaces/environmentProfileResult.js';
+export type {
+    DiagnosticEntry,
+    DiagnosticRedactionRule,
+    DiagnosticReporter,
+    Diagnostics,
+    FailureDiagnosticsPayload,
+    IntegrationSuiteContext,
+    IntegrationSuiteOptions,
+    IntegrationTestFixtures
+} from './harness/base/public/integration/integrationTypes.js';
 
-export type { default as FailureDiagnosticsPayload } from './harness/base/public/interfaces/failureDiagnosticsPayload.js';
+export { createEnvironmentProfile } from './harness/base/public/profile/createEnvironmentProfile.js';
 
-export type { default as IntegrationTestFixtures } from './harness/base/public/interfaces/integrationTestFixtures.js';
+// #endregion Integration
 
-export type { default as IntegrationSuiteContext } from './harness/base/public/interfaces/integrationSuiteContext.js';
+// #region Resource
+export { default as ResourceCleanupError } from './harness/base/public/resource/errors/resourceCleanupError.js';
 
-export type { default as IntegrationSuiteOptions } from './harness/base/public/interfaces/integrationSuiteOptions.js';
+export { default as ResourceTracker } from './harness/base/public/resource/resourceTracker.js';
 
-export type { default as ReadinessCheck } from './harness/base/public/interfaces/readinessCheck.js';
+export type { ResourceCleanupFailure } from './harness/base/public/resource/resourceTypes.js';
+// #endregion Resource
 
-export type { PollResult } from './utilities/public/interfaces/pollResult.js';
+// #region Profile
+export type {
+    DependencyType,
+    EnvironmentProfile,
+    EnvironmentProfileResult,
+    ProfileFixtures,
+    RiskLevel
+} from './harness/base/public/profile/profileTypes.js';
+// #endregion Profile
 
-export type { RetryOptions } from './utilities/public/interfaces/retryOptions.js';
+// #region Utilities
 
-export { integrationTest } from './harness/base/public/modules/integrationTestLifecycle.js';
+export type { PollResult, RetryOptions } from './utilities/public/retry/retryTypes.js';
 
-export { createSuiteRunner, integrationSuite } from './harness/base/public/modules/integrationSuite.js';
+// #endregion Utilities
 
-export { default as ResourceCleanupError } from './harness/base/public/errors/resourceCleanupError.js';
-
-export type { default as ResourceCleanupFailure } from './harness/base/public/interfaces/resourceCleanupFailure.js';
-
-export { default as ResourceTracker } from './harness/base/public/classes/resourceTracker.js';
-
-export { RetryTimeoutError } from './utilities/public/errors/retryTimeoutError.js';
-
-export { PollPredicateMismatchError } from './utilities/public/errors/pollPredicateMismatchError.js';
-
-export { MaxRetryAttemptsReachedError } from './utilities/public/errors/maxRetryAttemptsReachedError.js';

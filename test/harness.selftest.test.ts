@@ -1,10 +1,13 @@
 import { spawnSync, type SpawnSyncReturns } from 'node:child_process';
 import { type TestContext, afterEach, describe, expect, it, vi } from 'vitest';
-import type FailureDiagnosticsPayload from '../src/harness/base/public/interfaces/failureDiagnosticsPayload.js';
-import DiagnosticsRecorder from '../src/harness/base/private/classes/diagnostics.js';
-import ResourceTracker from '../src/harness/base/public/classes/resourceTracker.js';
-import ResourceCleanupError from '../src/harness/base/public/errors/resourceCleanupError.js';
-import { evaluateReadiness, integrationTest, type EnvironmentReadiness } from '../src/index.js';
+import DiagnosticsRecorder from '../src/harness/base/private/diagnostics/diagnostics.js';
+import {
+    evaluateReadiness,
+    integrationTest,
+    ResourceCleanupError,
+    type EnvironmentReadiness,
+    ResourceTracker, type FailureDiagnosticsPayload
+} from '../src/index.js';
 
 const unreadyIntegrationTest = integrationTest.extend<{
     '$file': {
@@ -270,7 +273,7 @@ void describe('DiagnosticsRecorder', () => {
 
         recorder.addReporter(reporter);
 
-        recorder.flush({ 'task': { } } as unknown as TestContext);
+        recorder.flush({ 'task': { } });
 
         expect(reporter.report).toHaveBeenCalledWith(expect.objectContaining({ 'failureMessages': [] }));
     });
@@ -300,7 +303,7 @@ void describe('DiagnosticsRecorder', () => {
             'task': {
                 'result': { 'errors': [{ 'message': 'Bearer secret-token' }] }
             }
-        } as unknown as TestContext);
+        });
 
         expect(capturedPayload).toEqual({
             'failureMessages': ['[SUPPRESSED]'],
@@ -398,7 +401,7 @@ void describe('DiagnosticsRecorder', () => {
             'task': {
                 'result': { 'errors': [{ 'message': 'expected failure' }] }
             }
-        } as unknown as TestContext);
+        });
 
         expect(consoleSpy).toHaveBeenCalledWith(
             '\n[Integration Test Diagnostic Reporter Failure] unit-test',
@@ -480,7 +483,7 @@ void describe('DiagnosticsRecorder', () => {
             'authorization': 'Bearer real-token'
         });
 
-        recorder.flush({ 'task': { 'result': { 'errors': [] } } } as unknown as TestContext);
+        recorder.flush({ 'task': { 'result': { 'errors': [] } } });
 
         expect(capturedPayload?.recordedContext).toEqual([
             {
@@ -519,7 +522,7 @@ void describe('DiagnosticsRecorder', () => {
 
         recorder.addRedactionRules(['serviceCredential']);
 
-        recorder.flush({ 'task': { 'result': { 'errors': [] } } } as unknown as TestContext);
+        recorder.flush({ 'task': { 'result': { 'errors': [] } } });
 
         expect(consoleSpy).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({
             'recordedContext': [
@@ -564,7 +567,7 @@ void describe('DiagnosticsRecorder', () => {
 
         recorder.addReporter(reporter);
 
-        recorder.flush({ 'task': { 'result': { 'errors': [] } } } as unknown as TestContext);
+        recorder.flush({ 'task': { 'result': { 'errors': [] } } });
 
         expect(capturedPayload).toBeDefined();
 

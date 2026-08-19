@@ -1,4 +1,4 @@
-import { integrationTest } from '../../src/harness/base/public/modules/integrationTestLifecycle.js';
+import { integrationTest } from '../../src/index.js';
 
 integrationTest('emits diagnostics for both test and cleanup failures', ({ diagnostics, resources }) => {
     resources.track('fixture resource', () => {

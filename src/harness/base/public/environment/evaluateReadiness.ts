@@ -1,5 +1,4 @@
-import type ReadinessCheck from '../interfaces/readinessCheck.js';
-import type { EnvironmentReadiness } from './environmentTypes.js';
+import type { EnvironmentReadiness, ReadinessCheck } from './environmentTypes.js';
 
 /**
  * Runs the provided readiness checks in order and stops at the first failure, so callers get a single actionable
