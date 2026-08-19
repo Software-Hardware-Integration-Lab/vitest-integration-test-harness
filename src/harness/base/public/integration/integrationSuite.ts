@@ -1,8 +1,6 @@
 import type { TestAPI } from 'vitest';
-import ResourceTracker from '../classes/resourceTracker.js';
-import type IntegrationSuiteContext from '../interfaces/integrationSuiteContext.js';
-import type IntegrationSuiteOptions from '../interfaces/integrationSuiteOptions.js';
-import type IntegrationTestFixtures from '../interfaces/integrationTestFixtures.js';
+import type { IntegrationTestFixtures, IntegrationSuiteContext, IntegrationSuiteOptions } from './integrationTypes.js';
+import ResourceTracker from '../resource/resourceTracker.js';
 import { integrationTest } from './integrationTestLifecycle.js';
 
 function toError(error: unknown): Error {
@@ -12,13 +10,16 @@ function toError(error: unknown): Error {
 }
 
 /**
- * Creates a test API with paired file-scoped setup and cleanup. The setup callback must return cleanup for the
- * shared state it creates; additional shared mutations can be registered immediately through `resources`.
+ * Creates a test API with paired file-scoped setup and cleanup bound to a specific base test runner.
+ * @param baseTest Base integration test runner that supplies standard integration test fixtures including readiness gating.
  * @param options File-scoped lifecycle configuration.
  * @returns Vitest test API whose suite lifecycle runs once per test file.
  */
-export function integrationSuite(options: IntegrationSuiteOptions): TestAPI<IntegrationTestFixtures> {
-    return integrationTest.extend<{
+export function createSuiteRunner<TFixtures extends IntegrationTestFixtures>(
+    baseTest: TestAPI<TFixtures>,
+    options: IntegrationSuiteOptions
+): TestAPI<TFixtures> {
+    return baseTest.extend<{
         '$file': {
             'suiteLifecycle': undefined;
         };
@@ -72,5 +73,16 @@ export function integrationSuite(options: IntegrationSuiteOptions): TestAPI<Inte
                 'auto': true
             }
         ]
-    });
+    }) as unknown as TestAPI<TFixtures>;
+}
+
+/**
+ * Creates a test API with paired file-scoped setup and cleanup using the default `integrationTest` runner.
+ * The setup callback must return cleanup for the shared state it creates; additional shared mutations can be
+ * registered immediately through `resources`.
+ * @param options File-scoped lifecycle configuration.
+ * @returns Vitest test API whose suite lifecycle runs once per test file.
+ */
+export function integrationSuite(options: IntegrationSuiteOptions): TestAPI<IntegrationTestFixtures> {
+    return createSuiteRunner(integrationTest, options);
 }

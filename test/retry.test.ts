@@ -1,5 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
-import { MaxRetryAttemptsReachedError, pollUntil, retry, RetryTimeoutError } from '../src/index.js';
+import { describe, expect, it, vi } from 'vitest';import { MaxRetryAttemptsReachedError, pollUntil, retry, RetryTimeoutError } from '../src/index.js';
 
 void describe('retry utilities', () => {
     it('retries transient failures and returns attempt metadata', async () => {

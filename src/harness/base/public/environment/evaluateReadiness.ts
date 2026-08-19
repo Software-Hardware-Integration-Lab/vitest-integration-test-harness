@@ -1,5 +1,4 @@
-import type EnvironmentReadiness from '../interfaces/environmentReadiness.js';
-import type ReadinessCheck from '../interfaces/readinessCheck.js';
+import type { EnvironmentReadiness, ReadinessCheck } from './environmentTypes.js';
 
 /**
  * Runs the provided readiness checks in order and stops at the first failure, so callers get a single actionable
@@ -25,7 +24,7 @@ export async function evaluateReadiness(checks: readonly ReadinessCheck[]): Prom
                 };
             }
         } catch (error) {
-            /** Human readable message extracted from whatever the check threw. */
+            /** Human-readable message extracted from whatever the check threw. */
             const message = error instanceof Error ? error.message : String(error);
 
             return {

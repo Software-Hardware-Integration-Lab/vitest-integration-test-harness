@@ -1,7 +1,7 @@
 import { test as baseTest, type TestContext } from 'vitest';
-import DiagnosticsRecorder from '../../private/classes/diagnostics.js';
-import type IntegrationTestFixtures from '../interfaces/integrationTestFixtures.js';
-import ResourceTracker from '../classes/resourceTracker.js';
+import type { IntegrationTestFixtures } from './integrationTypes.js';
+import DiagnosticsRecorder from '../../private/diagnostics/diagnostics.js';
+import ResourceTracker from '../resource/resourceTracker.js';
 
 /**
  * Base test function for external test integration suites. Provides the shared lifecycle
@@ -16,7 +16,7 @@ import ResourceTracker from '../classes/resourceTracker.js';
  *
  * export const test = integrationTest.extend({
  *     'environment': [
- *         async (_context, use): Promise<void> => {
+ *         async ({ }, use): Promise<void> => {
  *             await use(await evaluateReadiness([
  *                 {
  *                     'name': 'Approved tenant configured',
