@@ -1,14 +1,15 @@
 import type { TestAPI } from 'vitest';
-import type EnvironmentProfile from '../interfaces/environmentProfile.js';
-import type EnvironmentProfileResult from '../interfaces/environmentProfileResult.js';
-import type EnvironmentReadiness from '../interfaces/environmentReadiness.js';
-import type IntegrationSuiteOptions from '../interfaces/integrationSuiteOptions.js';
-import type IntegrationTestFixtures from '../interfaces/integrationTestFixtures.js';
-import { reservedProfileFixtureNames } from '../interfaces/profileFixtures.js';
-import { evaluateEnvironmentVariables, evaluateReadiness } from './environment.js';
-import { createSuiteRunner } from './integrationSuite.js';
-import { integrationTest } from './integrationTestLifecycle.js';
-import deepFreeze from '../../../../utilities/private/modules/deepFreeze.js';
+import type {
+    EnvironmentReadiness
+} from '../environment/environmentTypes.js';
+import type { IntegrationSuiteOptions, IntegrationTestFixtures } from '../integration/integrationTypes.js';
+import type { EnvironmentProfile, EnvironmentProfileResult } from './profileTypes.js';
+import deepFreeze from '../../../../utilities/private/deepFreeze.js';
+import { evaluateEnvironmentVariables } from '../environment/evaluateEnvironmentVariables.js';
+import { evaluateReadiness } from '../environment/evaluateReadiness.js';
+import { createSuiteRunner } from '../integration/integrationSuite.js';
+import { integrationTest } from '../integration/integrationTestLifecycle.js';
+import { reservedProfileFixtureNames } from './profileConstants.js';
 
 const reservedFixtureNames = new Set<string>(reservedProfileFixtureNames);
 
@@ -51,7 +52,7 @@ export function createEnvironmentProfile<TFixtures extends object = object>(prof
     }>({
         'environment': [
             // eslint-disable-next-line no-empty-pattern -- Vitest fixture functions require an object-destructured context.
-            async ({ }, use): Promise<void> => {
+            async ({}, use): Promise<void> => {
                 const envReadiness = evaluateEnvironmentVariables(profileSnapshot.requiredEnvironmentVariables);
 
                 if (!envReadiness.ready) {

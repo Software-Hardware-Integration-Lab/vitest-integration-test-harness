@@ -1,59 +1,74 @@
-export { evaluateEnvironmentVariables, evaluateReadiness } from './harness/base/public/modules/environment.js';
+// #region Environment
 
-export { createEnvironmentProfile } from './harness/base/public/modules/profile.js';
+export { evaluateReadiness } from './harness/base/public/environment/evaluateReadiness.js';
 
-export { pollUntil, retry } from './utilities/public/modules/retry.js';
+export { evaluateEnvironmentVariables } from './harness/base/public/environment/evaluateEnvironmentVariables.js';
 
-export type { default as Diagnostics } from './harness/base/public/interfaces/diagnostics.js';
+export type {
+    EnvironmentReadiness,
+    EnvironmentVariableCheckResult,
+    ReadinessCheck,
+    TestableEnvironmentVariable
+} from './harness/base/public/environment/environmentTypes.js';
 
-export type { default as DiagnosticEntry } from './harness/base/public/interfaces/diagnosticEntry.js';
+// #endregion Environment
 
-export type { default as DiagnosticRedactionRule } from './harness/base/public/interfaces/diagnosticRedactionRule.js';
+// #region Retry
 
-export type { default as DiagnosticReporter } from './harness/base/public/interfaces/diagnosticReporter.js';
+export { pollUntil, retry } from './utilities/public/retry/retry.js';
 
-export type { DependencyType } from './harness/base/public/interfaces/dependencyType.js';
+export { RetryTimeoutError } from './utilities/public/retry/errors/retryTimeoutError.js';
 
-export type { RiskLevel } from './harness/base/public/interfaces/riskLevel.js';
+export { PollPredicateMismatchError } from './utilities/public/retry/errors/pollPredicateMismatchError.js';
 
-export type { default as TestableEnvironmentVariable } from './harness/base/public/interfaces/testableEnvironmentVariable.js';
+export { MaxRetryAttemptsReachedError } from './utilities/public/retry/errors/maxRetryAttemptsReachedError.js';
 
-export type { EnvironmentVariableCheckResult } from './harness/base/public/interfaces/environmentVariableCheckResult.js';
+// #endregion Retry
 
-export type { default as EnvironmentProfile } from './harness/base/public/interfaces/environmentProfile.js';
+// #region Integration
 
-export type { ProfileFixtures } from './harness/base/public/interfaces/profileFixtures.js';
+export { integrationTest } from './harness/base/public/integration/integrationTestLifecycle.js';
 
-export type { default as EnvironmentProfileResult } from './harness/base/public/interfaces/environmentProfileResult.js';
+export { createSuiteRunner } from './harness/base/public/integration/integrationSuite.js';
 
-export type { default as EnvironmentReadiness } from './harness/base/public/interfaces/environmentReadiness.js';
+export { integrationSuite } from './harness/base/public/integration/integrationSuite.js';
 
-export type { default as FailureDiagnosticsPayload } from './harness/base/public/interfaces/failureDiagnosticsPayload.js';
+export type {
+    DiagnosticEntry,
+    DiagnosticRedactionRule,
+    DiagnosticReporter,
+    Diagnostics,
+    FailureDiagnosticsPayload,
+    IntegrationSuiteContext,
+    IntegrationSuiteOptions,
+    IntegrationTestFixtures
+} from './harness/base/public/integration/integrationTypes.js';
 
-export type { default as IntegrationTestFixtures } from './harness/base/public/interfaces/integrationTestFixtures.js';
+export { createEnvironmentProfile } from './harness/base/public/profile/createEnvironmentProfile.js';
 
-export type { default as IntegrationSuiteContext } from './harness/base/public/interfaces/integrationSuiteContext.js';
+// #endregion Integration
 
-export type { default as IntegrationSuiteOptions } from './harness/base/public/interfaces/integrationSuiteOptions.js';
+// #region Resource
+export { default as ResourceCleanupError } from './harness/base/public/resource/errors/resourceCleanupError.js';
 
-export type { default as ReadinessCheck } from './harness/base/public/interfaces/readinessCheck.js';
+export { default as ResourceTracker } from './harness/base/public/resource/resourceTracker.js';
 
-export type { PollResult } from './utilities/public/interfaces/pollResult.js';
+export type { ResourceCleanupFailure } from './harness/base/public/resource/resourceTypes.js';
+// #endregion Resource
 
-export type { RetryOptions } from './utilities/public/interfaces/retryOptions.js';
+// #region Profile
+export type {
+    DependencyType,
+    EnvironmentProfile,
+    EnvironmentProfileResult,
+    ProfileFixtures,
+    RiskLevel
+} from './harness/base/public/profile/profileTypes.js';
+// #endregion Profile
 
-export { integrationTest } from './harness/base/public/modules/integrationTestLifecycle.js';
+// #region Utilities
 
-export { createSuiteRunner, integrationSuite } from './harness/base/public/modules/integrationSuite.js';
+export type { PollResult, RetryOptions } from './utilities/public/retry/retryTypes.js';
 
-export { default as ResourceCleanupError } from './harness/base/public/errors/resourceCleanupError.js';
+// #endregion Utilities
 
-export type { default as ResourceCleanupFailure } from './harness/base/public/interfaces/resourceCleanupFailure.js';
-
-export { default as ResourceTracker } from './harness/base/public/classes/resourceTracker.js';
-
-export { RetryTimeoutError } from './utilities/public/errors/retryTimeoutError.js';
-
-export { PollPredicateMismatchError } from './utilities/public/errors/pollPredicateMismatchError.js';
-
-export { MaxRetryAttemptsReachedError } from './utilities/public/errors/maxRetryAttemptsReachedError.js';

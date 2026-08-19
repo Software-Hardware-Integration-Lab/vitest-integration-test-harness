@@ -1,9 +1,10 @@
 /* eslint-disable no-console -- Diagnostic output is the entire purpose of this module; only ever emitted on test failure. */
 import type { TestContext } from 'vitest';
-import type DiagnosticEntry from '../../public/interfaces/diagnosticEntry.js';
-import type DiagnosticRedactionRule from '../../public/interfaces/diagnosticRedactionRule.js';
-import type DiagnosticReporter from '../../public/interfaces/diagnosticReporter.js';
-import type FailureDiagnosticsPayload from '../../public/interfaces/failureDiagnosticsPayload.js';
+import type {
+    DiagnosticEntry,
+    DiagnosticRedactionRule,
+    DiagnosticReporter, FailureDiagnosticsPayload
+} from '../../public/integration/integrationTypes.js';
 
 /** Replacement for a diagnostic value whose property name matches a redaction rule. */
 const redactedValue = '[REDACTED]';

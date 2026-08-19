@@ -1,5 +1,6 @@
 import { eslintConfig } from '@software-hardware-integration-lab/development-utilities/optimized/lint/base.js'
 import { defineConfig } from 'eslint/config'
+import perfectionist from 'eslint-plugin-perfectionist'
 
 export default defineConfig([
     {
@@ -7,9 +8,16 @@ export default defineConfig([
     },
     ...eslintConfig,
     {
+        plugins: { 'perfectionist': perfectionist },
         rules: {
             'no-continue': 'off',
             'sort-imports': 'off',
+            'perfectionist/sort-imports': [
+                'warn',
+                {
+                    'newlinesBetween': 'ignore'
+                }
+            ],
             'sort-keys': 'off',
             'jsdoc/require-jsdoc': [
                 'warn',

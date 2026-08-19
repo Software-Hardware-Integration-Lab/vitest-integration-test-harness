@@ -1,5 +1,5 @@
 import { expect } from 'vitest';
-import { integrationTest } from '../../src/harness/base/public/modules/integrationTestLifecycle.js';
+import { integrationTest } from '../../src/index.js';
 
 /** Number of times the file-scoped readiness fixture has initialized. */
 let readinessInitializations = 0;

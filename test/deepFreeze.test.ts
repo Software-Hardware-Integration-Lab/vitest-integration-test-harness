@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import deepFreeze, { isCyclicObject } from '../src/utilities/private/modules/deepFreeze.js';
+import deepFreeze, { isCyclicObject } from '../src/utilities/private/deepFreeze.js';
 
 void describe('deepFreeze', () => {
     test('does not detect a circular reference in primitive values', () => {
