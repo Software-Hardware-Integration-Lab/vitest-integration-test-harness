@@ -1,12 +1,13 @@
 import type { TestAPI } from 'vitest';
+import type { EnvironmentReadiness } from '../environment/environmentTypes.js';
 import type EnvironmentProfile from '../interfaces/environmentProfile.js';
 import type EnvironmentProfileResult from '../interfaces/environmentProfileResult.js';
-import type EnvironmentReadiness from '../interfaces/environmentReadiness.js';
 import type IntegrationSuiteOptions from '../interfaces/integrationSuiteOptions.js';
 import type IntegrationTestFixtures from '../interfaces/integrationTestFixtures.js';
 import deepFreeze from '../../../../utilities/private/modules/deepFreeze.js';
+import { evaluateEnvironmentVariables } from '../environment/evaluateEnvironmentVariables.js';
+import { evaluateReadiness } from '../environment/evaluateReadiness.js';
 import { reservedProfileFixtureNames } from '../interfaces/profileFixtures.js';
-import { evaluateEnvironmentVariables, evaluateReadiness } from './environment.js';
 import { createSuiteRunner } from './integrationSuite.js';
 import { integrationTest } from './integrationTestLifecycle.js';
 

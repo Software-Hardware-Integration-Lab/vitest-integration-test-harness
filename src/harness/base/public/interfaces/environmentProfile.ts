@@ -1,4 +1,4 @@
-import type TestableEnvironmentVariable from './testableEnvironmentVariable.js';
+import type { TestableEnvironmentVariable } from '../environment/environmentTypes.js';
 import type { DependencyType } from './dependencyType.js';
 import type { ProfileFixtures } from './profileFixtures.js';
 import type ReadinessCheck from './readinessCheck.js';

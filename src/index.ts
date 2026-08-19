@@ -1,4 +1,16 @@
-export { evaluateEnvironmentVariables, evaluateReadiness } from './harness/base/public/modules/environment.js';
+// #region Environment
+
+export { evaluateReadiness } from './harness/base/public/environment/evaluateReadiness.js';
+
+export { evaluateEnvironmentVariables } from './harness/base/public/environment/evaluateEnvironmentVariables.js';
+
+export type {
+    EnvironmentVariableCheckResult,
+    TestableEnvironmentVariable,
+    EnvironmentReadiness
+} from './harness/base/public/environment/environmentTypes.js';
+
+// #endregion Environment
 
 export { createEnvironmentProfile } from './harness/base/public/modules/profile.js';
 
@@ -16,17 +28,11 @@ export type { DependencyType } from './harness/base/public/interfaces/dependency
 
 export type { RiskLevel } from './harness/base/public/interfaces/riskLevel.js';
 
-export type { default as TestableEnvironmentVariable } from './harness/base/public/interfaces/testableEnvironmentVariable.js';
-
-export type { EnvironmentVariableCheckResult } from './harness/base/public/interfaces/environmentVariableCheckResult.js';
-
 export type { default as EnvironmentProfile } from './harness/base/public/interfaces/environmentProfile.js';
 
 export type { ProfileFixtures } from './harness/base/public/interfaces/profileFixtures.js';
 
 export type { default as EnvironmentProfileResult } from './harness/base/public/interfaces/environmentProfileResult.js';
-
-export type { default as EnvironmentReadiness } from './harness/base/public/interfaces/environmentReadiness.js';
 
 export type { default as FailureDiagnosticsPayload } from './harness/base/public/interfaces/failureDiagnosticsPayload.js';
 

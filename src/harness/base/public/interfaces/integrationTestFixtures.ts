@@ -1,5 +1,5 @@
 import type ResourceTracker from '../classes/resourceTracker.js';
-import type EnvironmentReadiness from './environmentReadiness.js';
+import type { EnvironmentReadiness } from '../environment/environmentTypes.js';
 import type Diagnostics from './diagnostics.js';
 
 /**
