@@ -273,7 +273,7 @@ void describe('DiagnosticsRecorder', () => {
 
         recorder.addReporter(reporter);
 
-        recorder.flush({ 'task': { } });
+        recorder.flush({ 'task': {} } as unknown as TestContext);
 
         expect(reporter.report).toHaveBeenCalledWith(expect.objectContaining({ 'failureMessages': [] }));
     });
@@ -303,7 +303,7 @@ void describe('DiagnosticsRecorder', () => {
             'task': {
                 'result': { 'errors': [{ 'message': 'Bearer secret-token' }] }
             }
-        });
+        } as unknown as TestContext);
 
         expect(capturedPayload).toEqual({
             'failureMessages': ['[SUPPRESSED]'],
@@ -401,7 +401,7 @@ void describe('DiagnosticsRecorder', () => {
             'task': {
                 'result': { 'errors': [{ 'message': 'expected failure' }] }
             }
-        });
+        } as unknown as TestContext);
 
         expect(consoleSpy).toHaveBeenCalledWith(
             '\n[Integration Test Diagnostic Reporter Failure] unit-test',
@@ -483,7 +483,7 @@ void describe('DiagnosticsRecorder', () => {
             'authorization': 'Bearer real-token'
         });
 
-        recorder.flush({ 'task': { 'result': { 'errors': [] } } });
+        recorder.flush({ 'task': { 'result': { 'errors': [] } } } as unknown as TestContext);
 
         expect(capturedPayload?.recordedContext).toEqual([
             {
@@ -522,7 +522,7 @@ void describe('DiagnosticsRecorder', () => {
 
         recorder.addRedactionRules(['serviceCredential']);
 
-        recorder.flush({ 'task': { 'result': { 'errors': [] } } });
+        recorder.flush({ 'task': { 'result': { 'errors': [] } } } as unknown as TestContext);
 
         expect(consoleSpy).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({
             'recordedContext': [
@@ -567,7 +567,7 @@ void describe('DiagnosticsRecorder', () => {
 
         recorder.addReporter(reporter);
 
-        recorder.flush({ 'task': { 'result': { 'errors': [] } } });
+        recorder.flush({ 'task': { 'result': { 'errors': [] } } } as unknown as TestContext);
 
         expect(capturedPayload).toBeDefined();
 
