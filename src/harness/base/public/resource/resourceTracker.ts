@@ -112,7 +112,7 @@ export default class ResourceTracker {
      */
     assertDeclared(): void {
         if (this.#declaration === 'undecided') {
-            throw new Error(`Integration test '${ this.#testName }' must call ` +
+            throw new Error(`Integration run '${ this.#testName }' must call ` +
                 'resources.track(...) or resources.markNoResources().');
         }
     }
