@@ -1,16 +1,16 @@
-import type { ResourceCleanupFailure } from '../resourceTypes.js';
+import type { ResourceFailure } from '../resourceTypes.js';
 
 /** Raised when one or more tracked resource cleanups fail, after every cleanup has still been attempted. */
 export default class ResourceCleanupError extends Error {
     /** The individual failures encountered while cleaning up tracked resources, in the order they occurred. */
-    public readonly failures: readonly ResourceCleanupFailure[];
+    public readonly failures: readonly ResourceFailure[];
 
     /**
      * Creates the aggregate cleanup error.
      * @param failures Collection of description/error pairs for every cleanup call that failed.
      * @param testName Name of the test the failed cleanups belong to, included in the message for traceability.
      */
-    constructor(failures: readonly ResourceCleanupFailure[], testName: string) {
+    constructor(failures: readonly ResourceFailure[], testName: string) {
         /** Human-readable summary of every failed cleanup, used as the error's message. */
         const details = failures
             .map(({ description, error }) => {

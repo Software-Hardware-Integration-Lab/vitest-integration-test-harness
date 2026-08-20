@@ -5,6 +5,7 @@ import {
     evaluateReadiness,
     integrationTest,
     ResourceCleanupError,
+    ResourceSetupError,
     type EnvironmentReadiness,
     ResourceTracker, type FailureDiagnosticsPayload
 } from '../src/index.js';
@@ -88,6 +89,60 @@ void describe('evaluateReadiness', () => {
 });
 
 void describe('ResourceTracker', () => {
+    it('throws ResourceSetupError when setup fails and preserves prior resources for cleanup', async () => {
+        const tracker = new ResourceTracker('unit-test');
+
+        const cleanup = vi.fn();
+
+        await tracker.track('first', (): Promise<object> => Promise.resolve({}), cleanup);
+
+        try {
+            await tracker.track('second', (): Promise<object> => Promise.reject(new Error('setup boom')), cleanup);
+
+            expect.unreachable('Resource setup should have failed.');
+        } catch (error) {
+            expect(error).toBeInstanceOf(ResourceSetupError);
+
+            const setupError = error as ResourceSetupError;
+
+            expect(setupError.failures).toHaveLength(1);
+
+            expect(setupError.failures[0]?.description).toBe('second');
+
+            expect(setupError.failures[0]?.error).toBeInstanceOf(Error);
+
+            expect((setupError.failures[0]?.error as Error).message).toBe('setup boom');
+        }
+
+        expect(tracker.getTrackedDescriptions()).toEqual(['first']);
+
+        await tracker.cleanupAll();
+
+        expect(cleanup).toHaveBeenCalledOnce();
+    });
+
+    it('aborts later setup after a setup failure', async () => {
+        const tracker = new ResourceTracker('unit-test');
+
+        await expect(tracker.track(
+            'first',
+            (): Promise<object> => Promise.reject(new Error('setup boom')),
+            () => { /* No-op cleanup */ }
+        )).rejects.toBeInstanceOf(ResourceSetupError);
+
+        await expect(tracker.track(
+            'second',
+            // eslint-disable-next-line stylistic/no-confusing-arrow
+            (signal): Promise<object> => signal.aborted
+                ? Promise.reject(new Error('setup aborted'))
+                : Promise.resolve({}),
+            () => { /* No-op cleanup */ }
+        )).rejects.toMatchObject({
+            'name': 'ResourceSetupError',
+            'failures': [{ 'description': 'second' }]
+        });
+    });
+
     it('cleans up tracked resources in reverse (LIFO) order', async () => {
         /** Tracker under test, scoped to a fake test name since this exercises the class directly. */
         const tracker = new ResourceTracker('unit-test');
@@ -95,9 +150,9 @@ void describe('ResourceTracker', () => {
         /** Records the order cleanup callbacks actually ran in. */
         const order: string[] = [];
 
-        tracker.track('first', () => { order.push('first'); });
+        await tracker.track('first', (): Promise<object> => Promise.resolve({}), () => { order.push('first'); });
 
-        tracker.track('second', () => { order.push('second'); });
+        await tracker.track('second', (): Promise<object> => Promise.resolve({}), () => { order.push('second'); });
 
         await tracker.cleanupAll();
 
@@ -111,9 +166,9 @@ void describe('ResourceTracker', () => {
         /** Spy proving the second cleanup still runs despite the first one throwing. */
         const secondCleanup = vi.fn();
 
-        tracker.track('will fail', () => { throw new Error('cleanup boom'); });
+        await tracker.track('will fail', (): Promise<object> => Promise.resolve({}), () => { throw new Error('cleanup boom'); });
 
-        tracker.track('will still run', secondCleanup);
+        await tracker.track('will still run', (): Promise<object> => Promise.resolve({}), secondCleanup);
 
         await expect(tracker.cleanupAll()).rejects.toThrow(ResourceCleanupError);
 
@@ -124,7 +179,7 @@ void describe('ResourceTracker', () => {
         /** Tracker under test, scoped to a fake test name since this exercises the class directly. */
         const tracker = new ResourceTracker('unit-test');
 
-        tracker.track('will fail', () => { throw new Error('cleanup boom'); });
+        await tracker.track('will fail', (): Promise<object> => Promise.resolve({}), () => { throw new Error('cleanup boom'); });
 
         try {
             await tracker.cleanupAll();
@@ -192,13 +247,13 @@ void describe('ResourceTracker', () => {
         expect(error.message).toContain('second resource: 500');
     });
 
-    it('exposes descriptions of resources still tracked', () => {
+    it('exposes descriptions of resources still tracked', async () => {
         /** Tracker under test, scoped to a fake test name since this exercises the class directly. */
         const tracker = new ResourceTracker('unit-test');
 
-        tracker.track('alpha', () => { /* No-op cleanup */ });
+        await tracker.track('alpha', (): Promise<object> => Promise.resolve({}), () => { /* No-op cleanup */ });
 
-        tracker.track('beta', () => { /* No-op cleanup */ });
+        await tracker.track('beta', (): Promise<object> => Promise.resolve({}), () => { /* No-op cleanup */ });
 
         expect(tracker.getTrackedDescriptions()).toEqual(['alpha', 'beta']);
     });
@@ -210,7 +265,7 @@ void describe('ResourceTracker', () => {
         /** Counts cleanup attempts to simulate a transient eventual-consistency failure. */
         let attempts = 0;
 
-        tracker.track('eventually consistent resource', () => {
+        await tracker.track('eventually consistent resource', (): Promise<object> => Promise.resolve({}), () => {
             attempts += 1;
 
             if (attempts === 1) {
@@ -258,10 +313,14 @@ void describe('DiagnosticsRecorder', () => {
 
         expect(consoleSpy).toHaveBeenCalledOnce();
 
-        /** Second argument passed to the `console.error` call, containing the structured diagnostic payload. */
-        const [, payload] = consoleSpy.mock.calls[0] as [string, FailureDiagnosticsPayload];
+        /** Rendered failure detail passed to `console.error`. */
+        const [renderedDiagnostics] = consoleSpy.mock.calls[0] as [string];
 
-        expect(payload.failureMessages).toEqual(['expected failure']);
+        expect(renderedDiagnostics).toContain('expected failure');
+
+        expect(renderedDiagnostics).toContain('label: \'note\'');
+
+        expect(renderedDiagnostics).toContain('detail: 42');
     });
 
     it('emits an empty failure message list when Vitest reports no errors', () => {
@@ -524,17 +583,13 @@ void describe('DiagnosticsRecorder', () => {
 
         recorder.flush({ 'task': { 'result': { 'errors': [] } } } as unknown as TestContext);
 
-        expect(consoleSpy).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({
-            'recordedContext': [
-                {
-                    'label': 'response',
-                    'detail': {
-                        'serviceCredential': '[REDACTED]',
-                        'sideEffect': '[Accessor diagnostic value]'
-                    }
-                }
-            ]
-        }));
+        const [renderedDiagnostics] = consoleSpy.mock.calls[0] as [string];
+
+        expect(renderedDiagnostics).toContain('label: \'response\'');
+
+        expect(renderedDiagnostics).toContain('serviceCredential: \'[REDACTED]\'');
+
+        expect(renderedDiagnostics).toContain('sideEffect: \'[Accessor diagnostic value]\'');
     });
 
     it('represents Error, non-plain, array, and circular diagnostic values safely', () => {
@@ -602,16 +657,18 @@ void describe('integration lifecycle wiring (real fixtures)', () => {
     /** Records the order the real `resources` fixture actually ran cleanup callbacks in, across tests below. */
     const cleanupOrder: string[] = [];
 
-    integrationTest('tracks resources through the real fixture and defers cleanup until after the test', ({ resources }) => {
-        resources.track('outer', () => { cleanupOrder.push('outer'); });
+    integrationTest('tracks resources through the real fixture and defers cleanup until after the test', async ({ resources }) => {
+        await resources.track('outer', (): Promise<object> => Promise.resolve({}), () => { cleanupOrder.push('outer'); });
 
-        resources.track('inner', () => { cleanupOrder.push('inner'); });
+        await resources.track('inner', (): Promise<object> => Promise.resolve({}), () => { cleanupOrder.push('inner'); });
 
         // Cleanup is only registered here - it must not have run yet.
         expect(cleanupOrder).toEqual([]);
     });
 
-    integrationTest('previous test\'s resources were already cleaned up in LIFO order by the time this test runs', () => {
+    integrationTest('previous test\'s resources were already cleaned up in LIFO order by the time this test runs', ({ resources }) => {
+        resources.markNoResources();
+
         expect(cleanupOrder).toEqual(['inner', 'outer']);
     });
 });

@@ -1,6 +1,8 @@
-import type TrackedResource from '../../private/resource/trackedResource.js';
-import type { ResourceCleanupFailure } from './resourceTypes.js';
+import type { ResourceFailure } from './resourceTypes.js';
+import { type ResourceDeclaration } from '../../private/resource/resourceTypes.js';
+import { TrackedResource } from '../../private/resource/trackedResource.js';
 import ResourceCleanupError from './errors/resourceCleanupError.js';
+import ResourceSetupError from './errors/resourceSetupError.js';
 
 /**
  * Tracks resources created or modified during a single test so they can be reliably restored afterward, regardless
@@ -9,31 +11,110 @@ import ResourceCleanupError from './errors/resourceCleanupError.js';
  */
 export default class ResourceTracker {
     /** Stack of tracked resources awaiting cleanup, in the order they were registered. */
-    readonly #tracked: TrackedResource[] = [];
+    readonly #tracked: TrackedResource<unknown>[] = [];
 
     /** Name of the test this tracker is scoped to. Used only for diagnostics. */
     readonly #testName: string;
 
+    /** Cancels setup actions that have not started after a setup failure. */
+    readonly #abortController: AbortController;
+
+    /** Tracks whether the test has declared that it will create or modify resources. */
+    #declaration: ResourceDeclaration = 'undecided';
+
     /**
      * Creates a resource tracker scoped to a single test.
      * @param testName Name of the test this tracker instance belongs to, used for diagnostic output.
+     * @param abortSignal Optional external signal that cancels resource setup.
      */
-    constructor(testName: string) {
+    constructor(testName: string, abortSignal?: AbortSignal) {
         this.#testName = testName;
+
+        this.#abortController = new AbortController();
+
+        if (abortSignal) {
+            if (abortSignal.aborted) {
+                this.#abortController.abort(abortSignal.reason);
+            } else {
+                abortSignal.addEventListener('abort', () => {
+                    this.#abortController.abort(abortSignal.reason);
+                }, { 'once': true });
+            }
+        }
+    }
+
+    async track<T extends object = object>(
+        description: string,
+        setup: (signal: AbortSignal) => Promise<T>,
+        cleanup: (resource: T) => void | Promise<void>
+    ): Promise<string> {
+        if (this.#declaration === 'no-resources') {
+            throw new Error(`Cannot track '${ description }' after markNoResources() was called.`);
+        }
+
+        if (this.#abortController.signal.aborted) {
+            const abortReason = this.#abortController.signal.reason as unknown;
+
+            throw new ResourceSetupError([
+                {
+                    description,
+                    'error': abortReason instanceof Error
+                        ? abortReason
+                        : new Error('Resource setup was aborted.', { 'cause': abortReason })
+                }
+            ], this.#testName);
+        }
+
+        this.#declaration = 'resources';
+
+        const resource: TrackedResource<T> = new TrackedResource<T>(description, cleanup);
+
+        const key = crypto.randomUUID();
+
+        try {
+            resource.setupResult = await setup(this.#abortController.signal);
+        } catch (error: unknown) {
+            resource.setupError = {
+                'description': resource.description,
+                error
+            };
+
+            this.#abortController.abort(error);
+
+            throw new ResourceSetupError([resource.setupError], this.#testName);
+        }
+
+        this.#register(resource);
+
+        return key;
     }
 
     /**
-     * Registers a resource that was created or modified during the test, along with the action required to
-     * restore or delete it. Call this immediately after the mutation succeeds so cleanup is guaranteed even if a
-     * later step in the test throws.
-     * @param description Human readable description of the resource (e.g. `Entra group ${id}`), used in diagnostics.
-     * @param cleanup Action that reverses or removes the resource. Must tolerate the resource already being gone.
+     * Registers cleanup owned by the harness, without changing the consumer's resource declaration.
+     * @param description Human-readable description of the harness-owned cleanup.
+     * @param cleanup Cleanup action to register.
      */
-    track(description: string, cleanup: () => void | Promise<void>): void {
-        this.#tracked.push({
-            description,
-            cleanup
-        });
+    registerCleanup(description: string, cleanup: () => void | Promise<void>): void {
+        this.#register(new TrackedResource<void>(description, cleanup));
+    }
+
+    /**
+     * Adds a successfully setup resource to the cleanup stack.
+     * @param resource Successfully setup resource to register.
+     */
+    #register<T>(resource: TrackedResource<T>): void {
+        this.#tracked.push(resource as TrackedResource<unknown>);
+    }
+
+    /**
+     * Asserts that the test has declared whether it will create or modify resources. If not, throws an error
+     * instructing the test to call track(...) or markNoResources().
+     */
+    assertDeclared(): void {
+        if (this.#declaration === 'undecided') {
+            throw new Error(`Integration test '${ this.#testName }' must call ` +
+                'resources.track(...) or resources.markNoResources().');
+        }
     }
 
     /**
@@ -52,10 +133,10 @@ export default class ResourceTracker {
      */
     async cleanupAll(): Promise<void> {
         /** Failures captured while attempting each cleanup, so a single bad cleanup can't strand the rest. */
-        const failures: ResourceCleanupFailure[] = [];
+        const failures: ResourceFailure[] = [];
 
         /** Resources whose cleanup failed and must remain available for a later retry. */
-        const unresolvedResources: TrackedResource[] = [];
+        const unresolvedResources: TrackedResource<unknown>[] = [];
 
         while (this.#tracked.length > 0) {
             /** Next resource to clean up, taken from the end of the stack so cleanup runs in LIFO order. */
@@ -64,7 +145,7 @@ export default class ResourceTracker {
             if (!resource) { continue; }
 
             try {
-                await resource.cleanup();
+                await resource.cleanup(resource.setupResult);
             } catch (error) {
                 failures.push({
                     'description': resource.description,
@@ -80,5 +161,16 @@ export default class ResourceTracker {
         if (failures.length > 0) {
             throw new ResourceCleanupError(failures, this.#testName);
         }
+    }
+
+    /**
+     * Marks the test as having no resources to track. If the test later calls track(...), an error is thrown.
+     */
+    markNoResources(): void {
+        if (this.#declaration === 'resources') {
+            throw new Error('Cannot call markNoResources() after resources have been tracked.');
+        }
+
+        this.#declaration = 'no-resources';
     }
 }

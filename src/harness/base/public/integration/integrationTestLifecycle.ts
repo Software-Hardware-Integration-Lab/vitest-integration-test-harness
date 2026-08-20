@@ -1,7 +1,15 @@
-import { test as baseTest, type TestContext } from 'vitest';
+import { test as baseTest, type TestAPI, type TestContext } from 'vitest';
 import type { IntegrationTestFixtures } from './integrationTypes.js';
 import DiagnosticsRecorder from '../../private/diagnostics/diagnostics.js';
 import ResourceTracker from '../resource/resourceTracker.js';
+
+type EnvironmentScope = 'file' | 'test' | 'worker';
+
+function toError(error: unknown): Error {
+    return error instanceof Error
+        ? error
+        : new Error(String(error), { 'cause': error });
+}
 
 /**
  * Base test function for external test integration suites. Provides the shared lifecycle
@@ -28,53 +36,110 @@ import ResourceTracker from '../resource/resourceTracker.js';
  *     ]
  * });
  * ```
+ * @param scope Scope at which the environment readiness fixture is evaluated.
+ * @param resolveEnvironment Resolves the readiness result for the configured environment.
+ * @returns Integration test API with the requested environment scope and shared harness fixtures.
  */
-export const integrationTest = baseTest.extend<IntegrationTestFixtures>({
-    'environment': [
-        // eslint-disable-next-line no-empty-pattern -- Vitest fixture functions require an object-destructured context.
-        async ({ }, use): Promise<void> => {
-            await use({
-                'ready': true,
-                'reason': void 0
-            });
-        },
-        { 'scope': 'file' }
-    ],
-    'readinessGate': [
-        async ({ environment, skip }, use): Promise<void> => {
-            if (!environment.ready) {
-                skip(`Integration environment is not ready: ${ environment.reason ?? 'unknown reason' }`);
-            }
+export function createIntegrationTest(
+    scope: EnvironmentScope,
+    resolveEnvironment: () => Promise<IntegrationTestFixtures['environment']>
+): TestAPI<IntegrationTestFixtures> {
+    const fixtures = {
+        'environment': [
+            // eslint-disable-next-line no-empty-pattern -- Vitest fixture functions require an object-destructured context.
+            async ({ }, use: (value: IntegrationTestFixtures['environment']) => Promise<void>): Promise<void> => {
+                await use(await resolveEnvironment());
+            },
+            { scope }
+        ],
+        'readinessGate': [
+            async (
+                { environment, skip }: IntegrationTestFixtures & {
+                    'skip': (reason?: string) => void;
+                },
+                use: (value: undefined) => Promise<void>
+            ): Promise<void> => {
+                if (!environment.ready) {
+                    skip(`Integration environment is not ready: ${ environment.reason ?? 'unknown reason' }`);
+                }
 
-            await use(void 0);
-        },
-        { 'auto': true }
-    ],
-    'resources': [
-        async ({ task }, use): Promise<void> => {
-            const tracker = new ResourceTracker(task.name);
+                await use(void 0);
+            },
+            { 'auto': true }
+        ],
+        'resources': [
+            async ({ task }: IntegrationTestFixtures & { 'task': { 'name': string } }, use: (value: ResourceTracker) => Promise<void>): Promise<void> => {
+                const tracker = new ResourceTracker(task.name);
 
-            try {
-                await use(tracker);
-            } finally {
-                await tracker.cleanupAll();
-            }
-        },
-        { 'auto': true }
-    ],
-    'diagnostics': [
-        async ({ onTestFailed, task }, use): Promise<void> => {
-            /** Recorder for this specific test, so diagnostic context never leaks across tests. */
-            const recorder = new DiagnosticsRecorder(task.name);
+                let testFailed = false;
 
-            // Runs only after Vitest has recorded the test failure and completed fixture cleanup.
-            onTestFailed((context: TestContext) => {
-                recorder.flush(context);
-            });
+                let testError: unknown;
 
-            await use(recorder);
-        },
-        { 'auto': true }
-    ]
+                try {
+                    await use(tracker);
+                } catch (error) {
+                    testFailed = true;
 
-});
+                    testError = error;
+                }
+
+                let cleanupError: unknown;
+
+                try {
+                    await tracker.cleanupAll();
+                } catch (error) {
+                    cleanupError = error;
+                }
+
+                if (testFailed && cleanupError !== void 0) {
+                    throw new AggregateError(
+                        [toError(testError), cleanupError],
+                        `Integration test '${ task.name }' failed and cleanup also failed.`,
+                        { 'cause': cleanupError }
+                    );
+                }
+
+                if (testFailed) {
+                    throw toError(testError);
+                }
+
+                if (cleanupError !== void 0) {
+                    throw toError(cleanupError);
+                }
+
+                tracker.assertDeclared();
+            },
+            { 'auto': true }
+        ],
+        'diagnostics': [
+            async (
+                { onTestFailed, task }: IntegrationTestFixtures & {
+                    'onTestFailed': (callback: (context: TestContext) => void) => void;
+                    'task': { 'name': string };
+                },
+                use: (value: IntegrationTestFixtures['diagnostics']) => Promise<void>
+            ): Promise<void> => {
+                /** Recorder for this specific test, so diagnostic context never leaks across tests. */
+                const recorder = new DiagnosticsRecorder(task.name);
+
+                // Runs only after Vitest has recorded the test failure and completed fixture cleanup.
+                onTestFailed((context: TestContext) => {
+                    recorder.flush(context);
+                });
+
+                await use(recorder);
+            },
+            { 'auto': true }
+        ]
+    };
+
+    return baseTest.extend<IntegrationTestFixtures>(fixtures as never) as TestAPI<IntegrationTestFixtures>;
+}
+
+export const integrationTest = createIntegrationTest(
+    'file',
+    (): Promise<IntegrationTestFixtures['environment']> => Promise.resolve({
+        'ready': true,
+        'reason': void 0
+    })
+);

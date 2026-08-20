@@ -41,7 +41,9 @@ export function createSuiteRunner<TFixtures extends IntegrationTestFixtures>(
                 try {
                     const cleanup = await options.setup(context);
 
-                    resources.track(options.name, cleanup);
+                    resources.assertDeclared();
+
+                    resources.registerCleanup(options.name, cleanup);
 
                     await use(void 0);
                 } catch (error) {

@@ -3,10 +3,10 @@ import { integrationSuite } from '../../src/index.js';
 
 const test = integrationSuite({
     'name': 'shared suite state',
-    'setup': ({ resources }) => {
+    'setup': async ({ resources }) => {
         console.log('[suite lifecycle] setup');
 
-        resources.track('additional shared state', () => {
+        await resources.track('additional shared state', (): Promise<object> => Promise.resolve({}), () => {
             console.log('[suite lifecycle] additional cleanup');
         });
 

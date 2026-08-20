@@ -7,8 +7,8 @@
 
 import { integrationTest } from '../../src/index.js';
 
-integrationTest('emits failure diagnostics', ({ resources, diagnostics }) => {
-    resources.track('my cloud resource', () => { /* No-op cleanup */ });
+integrationTest('emits failure diagnostics', async ({ resources, diagnostics }) => {
+    await resources.track('my cloud resource', (): Promise<object> => Promise.resolve({}), () => { /* No-op cleanup */ });
 
     diagnostics.record('diagnostic', { 'detail': 'context' });
 
