@@ -12,6 +12,60 @@ function toError(error: unknown): Error {
 }
 
 /**
+ * Runs a test body with automatic resource cleanup, preserving whichever failure (test body, cleanup, or both)
+ * actually occurred. Extracted from the `resources` fixture so its branches can be unit tested directly.
+ * @param taskName Name of the test this lifecycle run belongs to, used for diagnostic output.
+ * @param runTestBody Runs the test body with the tracker made available to it.
+ * @throws {Error} The original test body failure, when only the test body failed.
+ * @throws {Error} The original cleanup failure, when only cleanup failed.
+ * @throws {AggregateError} Both failures, when the test body and cleanup both failed.
+ */
+export async function runResourceTrackingLifecycle(
+    taskName: string,
+    runTestBody: (tracker: ResourceTracker) => Promise<void>
+): Promise<void> {
+    const tracker = new ResourceTracker(taskName);
+
+    let testFailed = false;
+
+    let testError: unknown;
+
+    try {
+        await runTestBody(tracker);
+    } catch (error) {
+        testFailed = true;
+
+        testError = error;
+    }
+
+    let cleanupError: unknown;
+
+    try {
+        await tracker.cleanupAll();
+    } catch (error) {
+        cleanupError = error;
+    }
+
+    if (testFailed && cleanupError !== void 0) {
+        throw new AggregateError(
+            [toError(testError), cleanupError],
+            `Integration test '${ taskName }' failed and cleanup also failed.`,
+            { 'cause': cleanupError }
+        );
+    }
+
+    if (testFailed) {
+        throw toError(testError);
+    }
+
+    if (cleanupError !== void 0) {
+        throw toError(cleanupError);
+    }
+
+    tracker.assertDeclared();
+}
+
+/**
  * Base test function for external test integration suites. Provides the shared lifecycle
  * with environment readiness validation, resource tracking with guaranteed cleanup, and failure diagnostics.
  *
@@ -69,45 +123,7 @@ export function createIntegrationTest(
         ],
         'resources': [
             async ({ task }: IntegrationTestFixtures & { 'task': { 'name': string } }, use: (value: ResourceTracker) => Promise<void>): Promise<void> => {
-                const tracker = new ResourceTracker(task.name);
-
-                let testFailed = false;
-
-                let testError: unknown;
-
-                try {
-                    await use(tracker);
-                } catch (error) {
-                    testFailed = true;
-
-                    testError = error;
-                }
-
-                let cleanupError: unknown;
-
-                try {
-                    await tracker.cleanupAll();
-                } catch (error) {
-                    cleanupError = error;
-                }
-
-                if (testFailed && cleanupError !== void 0) {
-                    throw new AggregateError(
-                        [toError(testError), cleanupError],
-                        `Integration test '${ task.name }' failed and cleanup also failed.`,
-                        { 'cause': cleanupError }
-                    );
-                }
-
-                if (testFailed) {
-                    throw toError(testError);
-                }
-
-                if (cleanupError !== void 0) {
-                    throw toError(cleanupError);
-                }
-
-                tracker.assertDeclared();
+                await runResourceTrackingLifecycle(task.name, (tracker) => use(tracker));
             },
             { 'auto': true }
         ],
