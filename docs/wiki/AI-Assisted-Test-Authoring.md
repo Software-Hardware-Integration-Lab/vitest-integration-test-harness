@@ -6,7 +6,7 @@ Those are the generic Vitest patterns, which is what anything falls back on with
 
 ## Where the file goes
 
-GitHub Copilot reads several files, and they differ in what they apply to.
+GitHub Copilot reads several instruction files.
 
 | File | Applies to | Frontmatter |
 | --- | --- | --- |
@@ -14,9 +14,9 @@ GitHub Copilot reads several files, and they differ in what they apply to.
 | `.github/copilot-instructions.md` | The whole repository | none |
 | `.github/agents/*.agent.md` | An agent you invoke by name | `name`, `description`, `tools` |
 
-Use the glob-scoped one. Integration test conventions are wrong for the rest of a repository, and `applyTo` is what keeps rules about resource cleanup from reaching a React component. Repository-wide instructions are the right home for things that are true everywhere, like your lint rules.
+Use the glob-scoped one. `applyTo` is what keeps rules about resource cleanup from reaching a React component. Repository-wide instructions are the right home for what is true everywhere, like your lint rules.
 
-One file covers every surface your team uses. The IDE, the CLI, and Copilot code review all read `.github/instructions`, so this is not something you maintain in three places. If you want it in some of them but not others, `excludeAgent` takes `code-review` or `cloud-agent`.
+The IDE, the CLI, and Copilot code review all read `.github/instructions`, so one file covers every surface your team uses. To reach some but not others, `excludeAgent` takes `code-review` or `cloud-agent`.
 
 ## The instruction file
 
@@ -91,9 +91,9 @@ Recording an object that gets mutated later prints the final state under a label
 
 The CLI reads the same file. It picks up `.github/instructions/**/*.instructions.md` and honors `applyTo`, so the file you added for the IDE works in a terminal session with nothing else to do.
 
-It also reads `.github/copilot-instructions.md` and `AGENTS.md` from the repository, and `~/.copilot/copilot-instructions.md` and `~/.copilot/instructions/**/*.instructions.md` from your own machine. There is no defined precedence between them. The CLI combines whatever applies and drops exact duplicates, so putting the same rules in two of these gains you nothing and contradicting yourself across two of them is a genuine problem.
+It also reads `.github/copilot-instructions.md` and `AGENTS.md` from the repository, and `~/.copilot/copilot-instructions.md` and `~/.copilot/instructions/**/*.instructions.md` from your own machine. There is no defined precedence between them. The CLI combines whatever applies and drops exact duplicates, so putting the same rules in two of these gains you nothing, and contradicting yourself across two of them leaves nothing to decide which version wins.
 
-`/instructions` lists the instruction files discovered for the session and lets you switch individual ones off. That answers both questions worth asking: whether your file is being picked up at all, and whether it is actually the thing changing the output.
+`/instructions` lists the instruction files discovered for the session and lets you switch individual ones off. That covers both whether your file loaded and whether it is the thing changing the output.
 
 ## What this does not do
 
@@ -103,4 +103,4 @@ Check where cleanup is registered. This is the rule assistants drop first when a
 
 Check that requirements are declared rather than asserted. A generated test that reads `if (!process.env['SERVICE_TOKEN']) { return; }` has quietly turned itself into a test that never runs and always passes.
 
-One maintenance note: the rules above describe this package's behavior at the version you copied them. When you upgrade, read them against [API Reference](API-Reference) rather than assuming they still hold.
+The rules above describe this package's behavior at the version you copied them. When you upgrade, read them against [API Reference](API-Reference) rather than assuming they still hold.
