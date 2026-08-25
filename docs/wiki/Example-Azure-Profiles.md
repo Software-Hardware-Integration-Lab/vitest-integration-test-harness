@@ -4,7 +4,7 @@ The [order service example](Example-Order-Service) shows one profile against an 
 
 This page shows three profiles for a realistic set of cloud dependencies: a directory tenant, a subscription, and a blob container. They are written against Azure and Entra because a concrete platform makes the example legible.
 
-**Every line on this page belongs to the application.** None of it is in the package, none of it ships with the package, and the package has no notion that Azure exists. This is what the consumer-owned side of the boundary looks like when it is filled in.
+**Every line on this page belongs to the application.** None of it ships with the package, and the package has no notion that Azure exists. This is what the consumer-owned side of the boundary looks like when it is filled in.
 
 ## A factory for the shared parts
 
@@ -148,7 +148,7 @@ A test file names its dependency and gets the variables, the checks, and the gat
 
 ## Back to the boundary
 
-Reread what is on this page: a GUID validator, three probe functions, three profile definitions, and a factory. All of it is specific to one platform and one application's arrangement with it.
+This page has a GUID validator, three probe functions, three profile definitions, and a factory. All of it is specific to one platform and one application's arrangement with it.
 
 Putting any of it in the package would make the package know about Azure. The next application, using something else entirely, would carry that weight for nothing. And the moment two applications disagreed about what a tenant profile should require, one of them would have to fork.
 

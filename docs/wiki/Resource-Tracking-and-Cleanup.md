@@ -10,7 +10,7 @@ const widget = await createWidget('example');
 resources.track(`Widget ${ widget.id }`, async () => { await deleteWidget(widget.id); });
 ```
 
-The `track` call belongs on the line after the resource exists, not at the end of the test. This is the single most important habit on this page, because the end of a test is the part that does not run when an assertion fails partway through.
+The `track` call belongs on the line after the resource exists, not at the end of the test. The end of a test is the part that does not run when an assertion fails partway through.
 
 The description is for humans. It shows up in cleanup failure messages, so `Widget ${ widget.id }` is worth typing over `widget`.
 

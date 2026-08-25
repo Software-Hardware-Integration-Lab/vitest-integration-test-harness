@@ -2,7 +2,7 @@
 
 A complete integration test against a fictional order service, using every mechanism the harness provides: an environment-variable schema, readiness checks, resource cleanup, diagnostics, and polling.
 
-The service is about as plain as it gets. Orders get created, they sit in `pending` for a while, and eventually they become `fulfilled` or `cancelled`. Nothing about the domain should hold your attention. What should stand out is the shape of the test.
+The service is about as plain as it gets. Orders get created, they sit in `pending` for a while, and eventually they become `fulfilled` or `cancelled`. Nothing about the domain should hold your attention; the shape of the test should.
 
 Everything on this page belongs to the application. None of it lives in the package.
 

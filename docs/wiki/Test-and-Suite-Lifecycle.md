@@ -1,6 +1,6 @@
 # Test and Suite Lifecycle
 
-Two lifecycles run in a harness test file. One belongs to each test and repeats. The other belongs to the file and runs once. Most confusion about cleanup ordering comes from mixing them up, so this page keeps them separate and then shows where they meet.
+Two lifecycles run in a harness test file. One belongs to each test and repeats. The other belongs to the file and runs once. Most confusion about cleanup ordering comes from mixing them up.
 
 ## The per-test lifecycle
 

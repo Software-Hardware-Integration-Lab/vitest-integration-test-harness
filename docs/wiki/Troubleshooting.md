@@ -10,7 +10,7 @@ That is the readiness gate, and it prints why. Vitest shows the skip reason next
 
 The part after the colon is either an aggregated list of environment-variable problems or the name of the readiness check that failed. Fix what it names.
 
-If the reason mentions a variable, note that all failing variables are listed at once, so set every one of them before running again rather than fixing them one at a time.
+If the reason mentions a variable, all failing variables are listed at once, so set every one of them before running again rather than fixing them one at a time.
 
 ## A readiness check never runs
 

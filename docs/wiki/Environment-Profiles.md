@@ -58,7 +58,7 @@ Three fields describe the dependency. None of them changes behavior; the package
 
 `riskLevel` describes how this dependency's setup and teardown can affect other tests. The suggested values are `Blocking`, `Important`, and `Optional`.
 
-The obvious reading of that is wrong, so it is worth slowing down on. Risk is not how important the dependency is to your product. A payment service might be the most business-critical thing you own and still be `Optional` here, if its test setup is isolated and its teardown cannot disturb anything else. A shared directory tenant might be `Blocking` despite being unglamorous, because tearing it down badly breaks every other suite. The field is about blast radius between tests.
+The obvious reading of that is wrong. Risk is not how important the dependency is to your product. A payment service might be the most business-critical thing you own and still be `Optional` here, if its test setup is isolated and its teardown cannot disturb anything else. A shared directory tenant might be `Blocking` despite being unglamorous, because tearing it down badly breaks every other suite. The field is about blast radius between tests.
 
 Both types are open. They accept the suggested values with editor completion, and they also accept any other string:
 

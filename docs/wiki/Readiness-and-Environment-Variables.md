@@ -2,7 +2,7 @@
 
 A test that needs a credential and does not have one should say so once, clearly, and then skip. It should not run, fail on a null reference somewhere deep in a client library, and leave you to work backwards to the actual cause.
 
-The harness has two mechanisms for this. They run in a fixed order, and the order is the most useful thing on this page.
+The harness has two mechanisms for this, and they run in a fixed order.
 
 ## Variables first, then checks
 
@@ -54,7 +54,7 @@ Failures are joined into a single reason of the form `KEY: reason, KEY: reason`.
 
 A reason that is empty or only whitespace after trimming falls back to `Validation check failed`. Worth knowing if you build the reason by interpolation, since a template that resolves to an empty string silently loses your message.
 
-One detail that saves confusion: a `check` is not called for a variable that is missing or whitespace-only. Those fail before validation runs, so your check never has to defend against an empty string.
+A `check` is not called for a variable that is missing or whitespace-only. Those fail before validation runs, so your check never has to defend against an empty string.
 
 ## `evaluateReadiness`
 

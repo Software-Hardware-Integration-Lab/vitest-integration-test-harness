@@ -28,7 +28,7 @@ integrationTest('creates and reads a widget', async ({ resources }) => {
 
 That runs immediately. There is no setup file to write and no configuration to add, because every environment is considered ready until you say otherwise.
 
-The one line worth studying is the `resources.track` call. It registers the cleanup for the widget the instant after the widget exists, which means the widget gets deleted even if the `expect` below it throws. Registering cleanup at the end of a test is the most common way to leak resources, because the end of a test is exactly the part that does not run when something fails.
+The `resources.track` call is the line that matters. It registers the cleanup for the widget the instant after the widget exists, which means the widget gets deleted even if the `expect` below it throws. Registering cleanup at the end of a test is the most common way to leak resources, because the end of a test is exactly the part that does not run when something fails.
 
 ## What you get without asking
 

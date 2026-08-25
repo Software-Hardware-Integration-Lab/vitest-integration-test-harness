@@ -43,7 +43,7 @@ The test is blunt for a reason. A more nuanced rule would be argued around, and 
 
 ## Why the line is drawn here
 
-A harness that knows about one provider stops being reusable by the next application. That is the whole argument, and it is worth being explicit about the cost: keeping the boundary means each application writes its own profiles rather than importing ready-made ones, and two applications using the same provider will write similar code.
+A harness that knows about one provider stops being reusable by the next application. That is the whole argument, and it has a cost: keeping the boundary means each application writes its own profiles rather than importing ready-made ones, and two applications using the same provider will write similar code.
 
 That duplication is the price. It buys a package that neither application has to fork when their requirements diverge, and it keeps one team's credentials and policy out of the other team's dependency tree.
 
