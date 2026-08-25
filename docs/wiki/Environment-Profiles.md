@@ -33,6 +33,12 @@ You get back three things.
 
 `cache.profile` is a frozen snapshot of the metadata. It exists so tooling can read what a suite depends on without executing anything.
 
+## Checks run once per file
+
+The readiness evaluation is file-scoped. Every test file that uses `cache.test` evaluates the variables and runs the checks once, and every test in that file shares the result.
+
+That matters when a check costs something. The `pingCache()` above is a network call, so it fires once per test file using this profile, not once per test and not once per run. Ten test files means ten pings. If a check is expensive enough that this is a problem, cache the result in your own code; the harness will not do it for you across files.
+
 Using it looks like an ordinary test file:
 
 ```ts

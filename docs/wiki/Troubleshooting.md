@@ -42,7 +42,7 @@ Two likely causes.
 
 The environment is not ready. Setup is skipped entirely in that case, before it can do anything expensive. Check the skip reason on the file's tests.
 
-Or `integrationSuite` was called inside a `describe` block. Vitest requires file-scoped fixtures at the top level of a test file, and this failure is quiet rather than loud. Setup simply does not happen. Move the call to the file's top level.
+If instead the file fails at collection with a `FixtureDependencyError` about the `suiteLifecycle` fixture, `integrationSuite` was called inside a `describe` block. Vitest requires file-scoped fixtures at the top level of a test file. Move the call there.
 
 ## Cleanup ran in the wrong order
 

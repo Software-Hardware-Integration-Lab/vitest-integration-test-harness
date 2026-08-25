@@ -38,7 +38,7 @@ Write the predicate so it accepts every terminal state, not just the one you wan
 | --- | --- | --- |
 | `timeoutMs` | required | Integer, 1 through 2,147,483,647 |
 | `initialIntervalMs` | `100` | Integer, 0 through 2,147,483,647 |
-| `maxIntervalMs` | `initialIntervalMs` | Integer, not below `initialIntervalMs` |
+| `maxIntervalMs` | `initialIntervalMs` | Integer, `initialIntervalMs` through 2,147,483,647 |
 | `backoffMultiplier` | `1` | Finite, at least 1 |
 | `jitterRatio` | `0` | Finite, 0 through 1 |
 | `maxRetryAttempts` | `Infinity` | Positive integer, or `Infinity` |
@@ -65,6 +65,14 @@ Out-of-range values throw a `RangeError` immediately rather than being clamped, 
 The error's `attempts` property is the total call count, not the retry count. In the second row that is `3`, not `2`. The message reports both numbers so the two are never confused.
 
 If the timeout and the attempt limit are both exceeded, the timeout wins and you get a `RetryTimeoutError`.
+
+The attempt-limit error arrives one backoff interval late. The delay before the next attempt is slept first, and only then is the limit noticed, so with `maxIntervalMs: 2_000` the failure surfaces up to two seconds after the final call returned. The attempt count is unaffected; only the reporting is delayed.
+
+## A late success still fails
+
+The deadline is checked again after your operation returns. If it has passed, the value is discarded and you get a `RetryTimeoutError` even though the call succeeded.
+
+This catches people out with a generous `timeoutMs` and a slow final attempt. An operation that starts at 29.5 s into a 30 s budget and returns successfully at 31 s produces a timeout, not a result. Size `timeoutMs` against the whole window you are willing to wait, including one full run of the operation, rather than against the polling alone.
 
 ## Failing fast on permanent errors
 

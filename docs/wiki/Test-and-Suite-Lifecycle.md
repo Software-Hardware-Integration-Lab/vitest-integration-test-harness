@@ -44,7 +44,9 @@ test('reads the shared widget', async () => {
 });
 ```
 
-`setup` must return a cleanup function. That is not a convention you can opt out of. The return value is registered immediately, before any test body runs, so the state you just created is already scheduled for teardown by the time anything can fail.
+`setup` must return a cleanup function. It is registered the moment `setup` returns, before any test body runs.
+
+The timing has a catch. That cleanup does not exist until `setup` finishes, so a `setup` that throws halfway through never registers it and never runs it. Track anything you create mid-setup with `context.resources` as soon as it exists, and save the return value for restoring state once the whole setup has succeeded.
 
 For a file using `integrationSuite`, the sequence is:
 
@@ -78,9 +80,11 @@ A failing cleanup never stops the remaining cleanups from being attempted. Every
 
 Only cleanup failed. A `ResourceCleanupError` is thrown, carrying every failed description and error in its `failures` property.
 
-Setup or a test failed, and cleanup also failed. Both are preserved in an `AggregateError` whose message reads `Integration suite '<name>' failed and cleanup also failed.` and whose `cause` is the cleanup error. Neither failure hides the other, which matters because the cleanup failure is often a consequence of the first one.
+Suite setup failed, and suite cleanup also failed. Both are preserved in an `AggregateError` whose message reads `Integration suite '<name>' failed and cleanup also failed.` and whose `cause` is the cleanup error. Neither failure hides the other, which matters because the cleanup failure is often a consequence of the first one.
 
-Setup or a test failed and cleanup succeeded. The original error is thrown as-is.
+Suite setup failed and cleanup succeeded. The setup error is rethrown. A thrown non-`Error` value is wrapped in an `Error` whose message is its string form and whose `cause` is the original value.
+
+A failing test body is not part of this. It never reaches the suite lifecycle, so it is reported on its own, and if that test's own `resources` cleanup also fails you get two separate errors rather than an aggregate.
 
 [Resource Tracking and Cleanup](Resource-Tracking-and-Cleanup) covers what happens to resources whose cleanup failed, including the fact that they stay tracked and can be retried.
 
@@ -88,4 +92,4 @@ Setup or a test failed and cleanup succeeded. The original error is thrown as-is
 
 `integrationSuite` must be called at the top level of a test file. Not inside `describe`, not inside another function.
 
-Vitest requires file-scoped fixtures to be declared at the file's top level, and the suite lifecycle is built on one. Calling it inside a `describe` block does not throw a helpful error. It simply does not behave the way you expect. If a suite's setup seems not to run, this is the first thing to check.
+Vitest requires file-scoped fixtures to be declared at the file's top level, and the suite lifecycle is built on one. Calling it inside a `describe` block fails the whole file during collection with a `FixtureDependencyError` naming the `suiteLifecycle` fixture and telling you to move it to the top level. You will not have to guess at this one.

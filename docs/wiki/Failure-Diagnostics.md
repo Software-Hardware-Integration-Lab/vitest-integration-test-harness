@@ -31,6 +31,12 @@ String rules match a whole property name case-insensitively. Regular expressions
 
 Rules apply retroactively. Entries are held unsanitized until the test actually fails, so a rule added at the end of a test still covers something recorded at the beginning. You do not have to declare redaction before the code that records.
 
+The same lateness has a consequence worth knowing. Details are held by reference and only copied when the test fails, so mutating an object after recording it changes what gets printed. When you want the value as it was at that moment, record a snapshot:
+
+```ts no-check
+diagnostics.record('order before update', { ...order });
+```
+
 ## How values are represented
 
 Plain objects and arrays are copied recursively, and circular references survive the copy rather than blowing the stack.

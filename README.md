@@ -69,7 +69,7 @@ Import everything from the package root. Paths under `src` are not a supported e
 | `createEnvironmentProfile` | Function | Bundles environment variables, readiness checks, fixtures, and metadata into a reusable profile. |
 | `evaluateReadiness` | Function | Runs readiness checks in order and returns a result containing the first failure reason, if any. |
 | `evaluateEnvironmentVariables` | Function | Validates required environment variables and aggregates every failure into one reason. |
-| `retry` | Function | Repeats a signal-aware operation until it succeeds, times out, is cancelled, or `shouldRetry` rejects an error. |
+| `retry` | Function | Repeats a signal-aware operation until it succeeds, times out, hits the attempt limit, is cancelled, or `shouldRetry` rejects an error. |
 | `pollUntil` | Function | Uses `retry` to repeat a signal-aware check until its value satisfies a predicate. |
 | `ResourceTracker` | Class | Tracks cleanup callbacks and runs them in LIFO order. |
 | `ResourceCleanupError` | Error class | Aggregates cleanup failures after every tracked callback has been attempted. |
@@ -85,7 +85,7 @@ Import everything from the package root. Paths under `src` are not a supported e
 | `ProfileFixtures` | Type | Custom fixture definitions for a profile, typed from Vitest's fixture extension API. |
 | `DependencyType` | Type | Open union classifying a dependency, such as `Database` or `BlobStorage`. |
 | `RiskLevel` | Type | Open union describing how a dependency's setup and teardown can affect other tests. |
-| `RetryOptions` | Type | Configures retry timeout, intervals, backoff, jitter, cancellation, attempt limit, and retry eligibility. |
+| `RetryOptions` | Type | Configures retry timeout, intervals, backoff, jitter, cancellation, attempt limit, retry eligibility, and operation context. |
 | `PollResult<T>` | Type | Contains a successful value of type `T`, attempt count, and elapsed time. |
 | `ResourceCleanupFailure` | Type | A failed cleanup's resource description and error. |
 | `FailureDiagnosticsPayload` | Type | Failure messages and recorded diagnostic entries emitted after a test fails. |

@@ -41,7 +41,7 @@ Four fixtures are active on every `integrationTest`, whether or not your test de
 | `resources` | Tracks cleanup callbacks for this test and runs them afterward in reverse order. |
 | `diagnostics` | Records context that prints only if this test fails. |
 
-Two of those do useful work with no involvement from you at all. `readinessGate` and `resources` run whether or not your test mentions them, so a test that never touches `resources` still gets a tracker constructed and cleaned up, and a test in an unready environment still gets skipped rather than failing in a confusing way.
+Three of those work with no involvement from you. `readinessGate`, `resources`, and `diagnostics` are active whether or not your test mentions them: a test in an unready environment is skipped rather than failing confusingly, a tracker is built and cleaned up even if you never track anything, and a failing test prints its diagnostics header even if you recorded nothing.
 
 ## Where to go from here
 
