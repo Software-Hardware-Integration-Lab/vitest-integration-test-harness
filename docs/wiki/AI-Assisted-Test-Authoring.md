@@ -1,10 +1,8 @@
 # AI-Assisted Test Authoring
 
-This package is private and recent, so a coding assistant has never seen it. Ask one to write an integration test against it and you get code that looks right and is wrong in the same few ways every time: Vitest's plain `test` instead of `integrationTest`, cleanup in a `try`/`finally` block, exports that sound plausible and do not exist, and the suite cleanup ordering backwards.
+Ask a coding assistant to write an integration test against this package and you get code that looks right and is wrong in the same few ways every time: Vitest's plain `test` instead of `integrationTest`, cleanup in a `try`/`finally` block, exports that sound plausible and do not exist, and the suite cleanup ordering backwards.
 
-None of that is the assistant being careless. It is filling a gap with the most common pattern it has seen, which is exactly what it should do when it knows nothing about the library.
-
-An instruction file closes the gap. This page has one you can copy.
+Those are the generic Vitest patterns, which is what anything falls back on without the specifics in front of it. An instruction file is how you supply them. This page has one you can copy.
 
 ## Where the file goes
 

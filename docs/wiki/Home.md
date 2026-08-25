@@ -32,6 +32,6 @@ If you already know what you are trying to do, [How-To Recipes](How-To) is organ
 
 If you would rather see the whole picture first, [Order Service](Example-Order-Service) is a complete example that combines readiness checks, an environment-variable schema, cleanup, diagnostics, and polling in one file set. [Cloud Profiles](Example-Azure-Profiles) shows the same ideas applied to a realistic set of application-owned dependencies.
 
-If your team writes tests with a coding assistant, [AI-Assisted Test Authoring](AI-Assisted-Test-Authoring) has an instruction file to drop into your repository. An assistant that has never seen this package guesses wrong in predictable ways, and that page is the correction.
+If your team writes tests with a coding assistant, [AI-Assisted Test Authoring](AI-Assisted-Test-Authoring) has an instruction file to drop into your repository. Without one you get generic Vitest patterns, wrong in the same few ways every time.
 
 For a specific mechanism, the sidebar lists each one. For a specific export, [API Reference](API-Reference) covers all 33.
