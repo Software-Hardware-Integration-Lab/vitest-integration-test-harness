@@ -1,8 +1,6 @@
 # How-To Recipes
 
-The other pages explain one mechanism at a time. This one goes the other way round: it starts from a task and pulls in whatever mechanisms that task needs.
-
-Each recipe links back to the page that covers its parts in full, so read this to get moving and read those to understand what you just wrote.
+The other pages explain one mechanism at a time. These recipes start from a task and pull in whatever mechanisms it needs, linking back to the page that covers each in full.
 
 ## Adopt the harness in a suite that already exists
 
@@ -48,7 +46,7 @@ Two tests in the same file can be on either side of this change at once, so ther
 
 **Pass three declares what the suite needs**, once the first two have settled. That is [Readiness and Environment Variables](Readiness-and-Environment-Variables) if it is one file, or [Environment Profiles](Environment-Profiles) if the same dependency shows up in several.
 
-The order matters because pass three is the only one that can make a test stop running. Get the cleanup right while everything still executes, then add the gate.
+Pass three is the only one that can make a test stop running, so get the cleanup right while everything still executes, then add the gate.
 
 ## Gate a suite on a dependency that provisions asynchronously
 
@@ -120,7 +118,7 @@ export const cache = createEnvironmentProfile({
 
 Caching the promise rather than the result matters: two files evaluating at once share the single in-flight call instead of racing to start a second one.
 
-**How far this reaches depends on how you run Vitest.** Module state is shared across the files in one worker process, not across workers, so with the default pool you get one call per worker rather than one per run. That is the ceiling on what module-level caching can buy you. If you need exactly one probe for the whole run no matter the pool layout, do it in a Vitest global setup file and pass the answer through the environment instead.
+**How far this reaches depends on how you run Vitest.** Module state is shared across the files in one worker process, not across workers, so with the default pool you get one call per worker rather than one per run. If you need exactly one probe for the whole run no matter the pool layout, do it in a Vitest global setup file and pass the answer through the environment instead.
 
 ## Redact a credential field the built-in rules miss
 
@@ -141,7 +139,7 @@ integrationTest('reads a widget with a bearer credential', async ({ diagnostics 
 
 Put the `addRedactionRules` call at the top of the test, or in a fixture shared by the suite. It works anywhere, since rules apply retroactively to anything already recorded, but a reader who sees it first has one less thing to verify.
 
-A regular expression is tested against the property name, so `/token$/iu` covers `accessToken`, `refreshToken`, and `bearerToken` in one rule. That is the usual fix, and it is better than listing the three you have thought of.
+A regular expression is tested against the property name, so `/token$/iu` covers `accessToken`, `refreshToken`, and `bearerToken` in one rule. Better than listing the three you have thought of.
 
 For what redaction does and does not reach, including why recording a client object gets you a placeholder, see [Failure Diagnostics](Failure-Diagnostics).
 
@@ -172,7 +170,7 @@ test('reports every missing variable at once', () => {
 
 These are ordinary Vitest tests, not integration tests. They touch nothing live, they run in any checkout, and they read the real schema rather than a copy of it, so a variable added to the profile is covered here the moment it is added.
 
-Two behaviors are worth asserting on deliberately. Failures are aggregated, so an empty environment reports all of them in one reason instead of the first. And a `check` never runs for a variable that is missing or whitespace only, which means a check written to assume it gets a non-empty string is correct rather than fragile.
+Failures are aggregated, so an empty environment reports all of them in one reason instead of the first. And a `check` never runs for a variable that is missing or whitespace only, which means a check written to assume it gets a non-empty string is correct rather than fragile.
 
 ## Related pages
 
