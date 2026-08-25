@@ -1,0 +1,1 @@
+These pages are generated from `docs/wiki/` in the [package repository](https://github.com/Software-Hardware-Integration-Lab/vitest-integration-test-harness). Edits made here are overwritten the next time that folder changes, so send corrections as a pull request instead.
