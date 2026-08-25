@@ -1,6 +1,8 @@
 **[Home](Home)**
 
 - [Getting Started](Getting-Started)
+- [How-To Recipes](How-To)
+- [AI-Assisted Test Authoring](AI-Assisted-Test-Authoring)
 
 **Mechanisms**
 

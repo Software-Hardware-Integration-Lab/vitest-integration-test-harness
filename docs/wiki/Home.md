@@ -28,6 +28,10 @@ Nothing else is required. There is no configuration file, no global setup hook, 
 
 If you want to see the smallest useful thing, read [Getting Started](Getting-Started). A working test is about ten lines and needs no configuration at all.
 
+If you already know what you are trying to do, [How-To Recipes](How-To) is organized by task rather than by mechanism: adopting the harness in a suite that already exists, waiting on a dependency that provisions slowly, redacting a credential the defaults miss.
+
 If you would rather see the whole picture first, [Order Service](Example-Order-Service) is a complete example that combines readiness checks, an environment-variable schema, cleanup, diagnostics, and polling in one file set. [Cloud Profiles](Example-Azure-Profiles) shows the same ideas applied to a realistic set of application-owned dependencies.
+
+If your team writes tests with a coding assistant, [AI-Assisted Test Authoring](AI-Assisted-Test-Authoring) has an instruction file to drop into your repository. An assistant that has never seen this package guesses wrong in predictable ways, and that page is the correction.
 
 For a specific mechanism, the sidebar lists each one. For a specific export, [API Reference](API-Reference) covers all 33.

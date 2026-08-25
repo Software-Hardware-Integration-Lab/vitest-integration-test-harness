@@ -50,6 +50,8 @@ Full documentation lives in the
 [wiki](https://github.com/Software-Hardware-Integration-Lab/vitest-integration-test-harness/wiki).
 
 - [Getting Started](https://github.com/Software-Hardware-Integration-Lab/vitest-integration-test-harness/wiki/Getting-Started)
+- [How-To Recipes](https://github.com/Software-Hardware-Integration-Lab/vitest-integration-test-harness/wiki/How-To)
+- [AI-Assisted Test Authoring](https://github.com/Software-Hardware-Integration-Lab/vitest-integration-test-harness/wiki/AI-Assisted-Test-Authoring)
 - [Test and Suite Lifecycle](https://github.com/Software-Hardware-Integration-Lab/vitest-integration-test-harness/wiki/Test-and-Suite-Lifecycle)
 - [Readiness and Environment Variables](https://github.com/Software-Hardware-Integration-Lab/vitest-integration-test-harness/wiki/Readiness-and-Environment-Variables)
 - [Environment Profiles](https://github.com/Software-Hardware-Integration-Lab/vitest-integration-test-harness/wiki/Environment-Profiles)
