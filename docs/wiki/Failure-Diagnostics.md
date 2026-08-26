@@ -15,6 +15,8 @@ Recording is cheap and silent. A passing test prints nothing, so you can record 
 
 When the test fails, everything recorded goes to `console.error` under a header naming the test, alongside the failure messages Vitest collected.
 
+The payload is formatted with Node's `util.inspect` rather than handed to `console.error` as an object, so what you read in a CI log is what a terminal would have shown you: expanded rather than collapsed, nested up to eight levels, wrapped at 120 columns. Long values are cut off rather than allowed to flood the log: 100 entries per array, 8,000 characters per string. A truncated string says so in the output, which is your cue to record a narrower field instead of a whole response body.
+
 ## Sensitive values are redacted
 
 Values are redacted by property name, not by inspecting the value. Seven names are covered out of the box, matched case-insensitively: `authorization`, `apiKey`, `connectionString`, `password`, `secret`, `token`, and `credential`. The two compound names also accept a hyphen or underscore, so `api_key` and `connection-string` match too.

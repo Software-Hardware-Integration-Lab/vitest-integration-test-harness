@@ -59,20 +59,25 @@ The readiness check reads the base URL directly from `process.env`, which is saf
 ```ts
 import { expect } from 'vitest';
 import { pollUntil } from '@software-hardware-integration-lab/vitest-integration-test-harness';
-import { cancelOrder, createOrder, getOrder } from './support/orderClient.js';
+import { cancelOrder, createOrder, getOrder, type Order } from './support/orderClient.js';
 import { orderApi } from './support/orderApiProfile.js';
 
-const test = orderApi.test;
+const test = orderApi.integrationTest;
 
 test('an order reaches a terminal status', async ({ resources, diagnostics }) => {
     diagnostics.addRedactionRules(['customerEmail']);
 
-    const order = await createOrder({
-        'sku': 'demo-widget',
-        'quantity': 1
-    });
+    let order!: Order;
 
-    resources.track(`Order ${ order.id }`, async () => { await cancelOrder(order.id); });
+    await resources.track(
+        'demo widget order',
+        async (signal): Promise<Order> => {
+            order = await createOrder({ 'sku': 'demo-widget', 'quantity': 1 }, signal);
+
+            return order;
+        },
+        async (created): Promise<void> => { await cancelOrder(created.id); }
+    );
 
     diagnostics.record('created order', order);
 
@@ -108,7 +113,9 @@ The health probe never runs. There would be nothing to probe, and a network erro
 
 The readiness gate skips the test with that reason as its message. No order is created, so there is nothing to clean up, and no diagnostics are emitted because nothing failed.
 
-Now the same test with the environment configured. Variable validation passes. The health probe runs once for the whole file. The test creates an order and registers its cancellation on the very next line, which means the order is cleaned up even if `pollUntil` times out. Polling starts at 250 ms and backs off toward 2 s with jitter, until the order reaches a terminal state or 30 seconds pass.
+Now the same test with the environment configured. Variable validation passes. The health probe runs once for the whole file. The order is created inside `track`, so its cancellation is registered the instant the order exists and runs even if `pollUntil` times out. Polling starts at 250 ms and backs off toward 2 s with jitter, until the order reaches a terminal state or 30 seconds pass.
+
+If the order service rejects the create outright, `track` throws a `ResourceSetupError` naming `demo widget order`, nothing is registered, and the test fails there rather than at whatever null reference the next line would have produced.
 
 If the order settles as `fulfilled`, the test passes and nothing is printed. The cleanup still runs and cancels the order.
 

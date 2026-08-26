@@ -8,19 +8,23 @@ You have integration tests using Vitest's `test`. You want cleanup and readiness
 
 Do it in three passes, and stop after whichever one is enough.
 
-**Pass one is an import change.** Swap `test` for `integrationTest` and change nothing else.
+**Pass one is the import and one line per test.** Swap `test` for `integrationTest`, then tell each test what it does.
 
 ```ts
 import { expect } from 'vitest';
 import { integrationTest } from '@software-hardware-integration-lab/vitest-integration-test-harness';
 import { getWidget } from './support/widgetClient.js';
 
-integrationTest('reads a widget', async () => {
+integrationTest('reads a widget', async ({ resources }) => {
+    resources.markNoResources();
+
     expect(await getWidget('widget-1')).toBeDefined();
 });
 ```
 
-Nothing about that test changes behavior. No readiness is declared, so the environment counts as ready, and the fixtures it never mentions cost it nothing beyond a tracker that ends up empty. What you gain immediately is the failure output: when that test breaks, you get a diagnostics header naming it rather than a bare stack.
+Read-only tests get `markNoResources()`. Tests that create something get it too for now, since their cleanup is still in a `try`/`finally` block and pass two is where that moves.
+
+Behavior is otherwise untouched. No readiness is declared, so the environment counts as ready, and the fixtures the test never mentions cost it nothing. What you gain immediately is the failure output: when that test breaks, you get a diagnostics header naming it rather than a bare stack.
 
 **Pass two moves your `try`/`finally` cleanup onto `resources`.** This is where the real payoff is, and it can be done one test at a time.
 
@@ -35,12 +39,22 @@ try {
 }
 
 // After
-const widget = await createWidget('example');
+let widget!: Widget;
 
-resources.track(`Widget ${ widget.id }`, async () => { await deleteWidget(widget.id); });
+await resources.track(
+    'example widget',
+    async (): Promise<Widget> => {
+        widget = await createWidget('example');
+
+        return widget;
+    },
+    async (created): Promise<void> => { await deleteWidget(created.id); }
+);
 
 expect(await getWidget(widget.id)).toEqual(widget);
 ```
+
+Drop the `markNoResources()` line from pass one as each test converts; `track` is the declaration now, and keeping both throws.
 
 Two tests in the same file can be on either side of this change at once, so there is no flag day.
 
@@ -120,6 +134,44 @@ Caching the promise rather than the result matters: two files evaluating at once
 
 **How far this reaches depends on how you run Vitest.** Module state is shared across the files in one worker process, not across workers, so with the default pool you get one call per worker rather than one per run. If you need exactly one probe for the whole run no matter the pool layout, do it in a Vitest global setup file and pass the answer through the environment instead.
 
+## Stop provisioning the moment one resource fails
+
+A test that builds three things in a row, where the second one fails, should not go on to build the third.
+
+It does not, and you do not have to arrange it. A failed setup aborts the tracker, so any `track` call after it throws `ResourceSetupError` without running its setup at all. In a sequential test body the first failure already ends the test; the abort is what covers the case where setups are in flight together:
+
+```ts no-check
+await Promise.all([
+    resources.track('container', (signal) => createContainer(signal), removeContainer),
+    resources.track('queue', (signal) => createQueue(signal), removeQueue),
+    resources.track('index', (signal) => createIndex(signal), removeIndex)
+]);
+```
+
+If the queue fails, the container and index setups get an aborted signal rather than running to completion and producing resources whose cleanup is already in question. Forwarding `signal` into your client is what makes that real; ignore the argument and the work finishes regardless, it just goes unregistered.
+
+Whatever did finish before the failure stays tracked and is still cleaned up. Only the resource whose setup threw is absent, because it was never created.
+
+## Re-check readiness more often than once per file
+
+A profile evaluates readiness once per test file. When a dependency can disappear mid-file, say a container that gets recycled or a lease that expires partway through a long suite, the remaining tests fail against a dependency that was ready when the file started.
+
+`scope` moves the evaluation:
+
+```ts no-check
+export const cache = createEnvironmentProfile({
+    'name': 'session-cache',
+    'dependencyType': 'Cache',
+    'riskLevel': 'Optional',
+    'scope': 'test',
+    'readinessChecks': [{ 'name': 'cache responds to ping', 'verify': pingCache }]
+});
+```
+
+Now every test evaluates for itself, and one that starts after the cache went away is skipped rather than failed. The bill is one probe per test, so this is worth it for a cheap local check and rarely worth it for a network round trip.
+
+`worker` goes the other way: one evaluation per Vitest worker process, shared by every file it runs. Cheapest, and the least current.
+
 ## Redact a credential field the built-in rules miss
 
 The built-in redaction anchors to whole property names. `token` is covered. `accessToken` is not, and objects from real clients are full of names like that.
@@ -130,7 +182,9 @@ Add rules for the shapes your code actually produces:
 import { integrationTest } from '@software-hardware-integration-lab/vitest-integration-test-harness';
 import { getWidget } from './support/widgetClient.js';
 
-integrationTest('reads a widget with a bearer credential', async ({ diagnostics }) => {
+integrationTest('reads a widget with a bearer credential', async ({ diagnostics, resources }) => {
+    resources.markNoResources();
+
     diagnostics.addRedactionRules([/token$/iu, /^x-api-/iu, 'clientAssertion']);
 
     diagnostics.record('widget', await getWidget('widget-1'));

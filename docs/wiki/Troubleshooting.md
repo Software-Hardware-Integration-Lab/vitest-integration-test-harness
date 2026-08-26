@@ -22,6 +22,34 @@ The environment differs, and the skip reason will say how. Worth checking: varia
 
 A skipped suite is not a passing suite. If you need CI to fail rather than skip when the environment is misconfigured, assert on that separately. The harness skips rather than fails, because a missing credential is usually an environment problem rather than a code defect.
 
+## `must call resources.track(...) or resources.markNoResources()`
+
+The test body ran to the end without saying whether it touches resources. Add whichever is true: `track` for a test that creates something, `resources.markNoResources()` for one that only reads.
+
+The message names the run rather than the file, so in a suite it distinguishes a test that forgot from a `setup` that forgot.
+
+The check runs after the body and after cleanup, which is why it can surface on a test whose assertions all passed. It never masks a real failure: a test that threw reports what it threw.
+
+## `ResourceSetupError`
+
+A setup function passed to `track` threw, or a `track` call ran on a tracker that had already aborted.
+
+Read `failures[0]` for the description and the underlying error. Resources tracked before this one are unaffected and still get cleaned up; the one that failed was never registered, since it was never created.
+
+## A `track` call failed without running its setup
+
+Something earlier aborted the tracker. That is either a setup failure on the same tracker, or an `AbortSignal` you passed to the constructor firing.
+
+The abort is permanent for that tracker's lifetime, by design. Once one resource could not be created, building more of them means creating things whose cleanup may already be in doubt.
+
+If your setup itself needs to notice the abort, take the `signal` argument and forward it to whatever does the work.
+
+## A suite's returned cleanup never ran
+
+Look for a declaration failure in `setup`. The declaration is checked before the cleanup you returned is registered, so a `setup` that neither tracked anything nor called `markNoResources()` fails the file with that cleanup unregistered.
+
+Anything setup created outside the tracker is then still there. Tracking what you create instead of creating it beside the tracker avoids the whole shape.
+
 ## `ResourceCleanupError` after a test that passed
 
 The test body succeeded and cleanup failed afterward. The message lists every cleanup that failed with its description and reason.
@@ -30,9 +58,9 @@ The usual cause is a cleanup that does not tolerate the resource already being g
 
 Resources whose cleanup failed stay tracked, so if you are calling `cleanupAll()` yourself you can retry and only the outstanding ones are attempted again.
 
-## `AggregateError` from a suite
+## `AggregateError` from a test or a suite
 
-Both the suite lifecycle and its cleanup failed. The message reads `Integration suite '<name>' failed and cleanup also failed.` and both errors are preserved: the first in `errors`, the cleanup error also as `cause`.
+Something failed and its cleanup failed too. The message says which lifecycle it was: `Integration test '<name>' failed and cleanup also failed.` for a test body, `Integration suite '<name>' failed and cleanup also failed.` for suite setup. Both errors are preserved either way: the first in `errors`, the cleanup error also as `cause`.
 
 Read the first one first. A cleanup failure that follows a setup failure is often a consequence of it, since setup may not have created the thing cleanup is trying to remove.
 
@@ -48,7 +76,7 @@ If instead the file fails at collection with a `FixtureDependencyError` about th
 
 Cleanup is LIFO, so the last thing registered is the first thing undone.
 
-Inside a suite `setup`, this catches people out: the cleanup you return from `setup` is registered after anything you registered with `resources.track` during setup, so it runs first. [Test and Suite Lifecycle](Test-and-Suite-Lifecycle) has the ordering table.
+Inside a suite `setup`, this catches people out: the cleanup you return from `setup` is registered after anything you tracked during setup, so it runs first. [Test and Suite Lifecycle](Test-and-Suite-Lifecycle) has the ordering table.
 
 ## `Profile fixtures cannot override the reserved '<name>' fixture.`
 
@@ -82,4 +110,4 @@ The package's own tests need no credentials and no configuration:
 npm test
 ```
 
-That runs 5 files: 106 pass and 6 skip. The 6 skips are intentional. They are the fixtures that demonstrate the readiness gate skipping unready tests, so they skip themselves. A clean checkout with no environment variables set produces exactly that result.
+That runs 7 files: 141 pass and 6 skip. The 6 skips are intentional. They are the fixtures that demonstrate the readiness gate skipping unready tests, so they skip themselves. A clean checkout with no environment variables set produces exactly that result.

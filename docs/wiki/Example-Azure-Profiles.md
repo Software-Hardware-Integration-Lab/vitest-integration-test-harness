@@ -131,14 +131,22 @@ None of these is `Optional`, which is the honest answer for a set of shared clou
 ```ts
 import { expect } from 'vitest';
 import { blobContainer } from './support/cloudProfiles.js';
-import { deleteBlob, readBlob, uploadTestBlob } from './support/blobClient.js';
+import { deleteBlob, readBlob, uploadTestBlob, type Blob } from './support/blobClient.js';
 
-const test = blobContainer.test;
+const test = blobContainer.integrationTest;
 
 test('uploads and reads back a blob', async ({ resources }) => {
-    const blob = await uploadTestBlob('hello');
+    let blob!: Blob;
 
-    resources.track(`Blob ${ blob.name }`, async () => { await deleteBlob(blob.name); });
+    await resources.track(
+        'test blob',
+        async (signal): Promise<Blob> => {
+            blob = await uploadTestBlob('hello', signal);
+
+            return blob;
+        },
+        async (uploaded): Promise<void> => { await deleteBlob(uploaded.name); }
+    );
 
     expect(await readBlob(blob.name)).toBe('hello');
 });

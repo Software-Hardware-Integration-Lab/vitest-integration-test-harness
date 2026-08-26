@@ -6,16 +6,20 @@ Two lifecycles run in a harness test file. One belongs to each test and repeats.
 
 For every test the harness runs, in this order:
 
-1. `environment` resolves. It is file-scoped, so this happens once for the whole file and every test in that file reads the same result.
+1. `environment` resolves. By default it is file-scoped, so this happens once for the whole file and every test in that file reads the same result.
 2. `readinessGate` checks it. If the environment is not ready, the test is skipped with the reason as its message, and nothing below this line runs.
 3. `resources` and `diagnostics` are constructed fresh for this test.
 4. Your test body runs.
-5. `resources.cleanupAll()` runs, in the fixture's `finally`, so it happens whether the body passed or threw.
-6. If the test failed, the recorded diagnostics are flushed to `console.error`.
+5. `resources.cleanupAll()` runs whether the body passed or threw.
+6. Whichever failures actually occurred are raised. A failed body alone rethrows the body's error. A failed cleanup alone throws `ResourceCleanupError`. Both failing produces an `AggregateError` reading `Integration test '<name>' failed and cleanup also failed.`, with the cleanup error as its `cause`.
+7. If nothing failed, the test's resource declaration is checked. A test that never called `track` or `markNoResources()` fails here.
+8. If the test failed for any of those reasons, the recorded diagnostics are flushed to `console.error`.
 
-Steps 2, 3, 5, and 6 happen without your test mentioning any of it. `readinessGate`, `resources`, and `diagnostics` are automatic fixtures, which is why a test that destructures nothing still gets gated, tracked, and cleaned up.
+Steps 2, 3, 5, 6, 7, and 8 happen without your test mentioning any of it. `readinessGate`, `resources`, and `diagnostics` are automatic fixtures, which is why a test that destructures nothing still gets gated, tracked, and cleaned up, and why it still has to declare.
 
-Step 1 being file-scoped matters more than it looks. A readiness check that makes a network call runs once per file rather than once per test, so putting an expensive probe in a readiness check does not multiply across a file's tests.
+Step 7 running last is deliberate. A test that fails an assertion reports the assertion, not a missing declaration, so the enforcement never buries the reason a test actually broke.
+
+Step 1's scope matters more than it looks. A readiness check that makes a network call runs once per file rather than once per test, so putting an expensive probe in a readiness check does not multiply across a file's tests. A profile can move that to `test` or `worker` scope; see [Environment Profiles](Environment-Profiles).
 
 ## The suite lifecycle
 
@@ -29,9 +33,17 @@ import { createWidget, deleteWidget, restoreWidgetDefaults, getWidget } from './
 const test = integrationSuite({
     'name': 'widget suite state',
     'setup': async ({ resources }) => {
-        const widget = await createWidget('shared-widget');
+        let widget!: Widget;
 
-        resources.track(`Widget ${ widget.id }`, async () => { await deleteWidget(widget.id); });
+        await resources.track(
+            'shared widget',
+            async (): Promise<Widget> => {
+                widget = await createWidget('shared-widget');
+
+                return widget;
+            },
+            async (created): Promise<void> => { await deleteWidget(created.id); }
+        );
 
         return async (): Promise<void> => {
             await restoreWidgetDefaults(widget.id);
@@ -39,23 +51,28 @@ const test = integrationSuite({
     }
 });
 
-test('reads the shared widget', async () => {
+test('reads the shared widget', async ({ resources }) => {
+    resources.markNoResources();
+
     expect(await getWidget('shared-widget')).toBeDefined();
 });
 ```
 
-`setup` must return a cleanup function. It is registered the moment `setup` returns, before any test body runs.
+`setup` must return a cleanup function, and it must declare resources on the tracker it was handed, exactly as a test does. Suite setup that neither tracks nor calls `markNoResources()` fails the whole file with `Integration run '<name>' must call resources.track(...) or resources.markNoResources().`
 
-The timing has a catch. That cleanup does not exist until `setup` finishes, so a `setup` that throws halfway through never registers it and never runs it. Track anything you create mid-setup with `context.resources` as soon as it exists, and save the return value for restoring state once the whole setup has succeeded.
+That failure has a sharp edge. The declaration is checked before the cleanup you returned is registered, so a setup that forgets to declare never gets that cleanup run either. If setup created something outside the tracker, it is still there afterward. Track what you create and the problem does not arise.
+
+The tests in the file each declare for themselves. Sharing state through the suite is not a declaration; `markNoResources()` in a test that only reads is.
 
 For a file using `integrationSuite`, the sequence is:
 
 1. `environment` evaluates for the file.
 2. If it is not ready, `setup` never runs at all, and the readiness gate skips the file's tests.
 3. If it is ready, `setup` runs once.
-4. Its returned cleanup is registered with the suite's tracker immediately.
-5. Each test runs with the normal per-test fixtures, including its own separate `resources`.
-6. After every test in the file finishes, the suite tracker cleans up.
+4. Its declaration is checked.
+5. Its returned cleanup is registered with the suite's tracker, under the suite's name.
+6. Each test runs with the normal per-test fixtures, including its own separate `resources`.
+7. After every test in the file finishes, the suite tracker cleans up.
 
 Step 2 is worth noticing. An unready environment does not run your setup and then skip the tests; it skips setup entirely, so a suite that provisions something expensive costs nothing when its credentials are missing.
 
@@ -67,16 +84,16 @@ The consequence inside `setup` is easy to get backwards. Look at the registratio
 
 | Registered | What it is | Cleanup order |
 | --- | --- | --- |
-| First | `resources.track('Widget …', deleteWidget)` inside `setup` | Second |
+| First | `resources.track('shared widget', ...)` inside `setup` | Second |
 | Last | the function `setup` returned | First |
 
-The cleanup you return from `setup` runs **before** anything you registered with `resources.track` during setup, because it was registered last and cleanup is LIFO.
+The cleanup you return from `setup` runs **before** anything you tracked during setup, because it is registered last and cleanup is LIFO.
 
-If you need the reverse, with the returned cleanup running after your tracked ones, register the tracked ones after `setup` returns, or move the work out of the return value and into a `resources.track` call so you control its position in the stack.
+If you need the reverse, with the returned cleanup running after your tracked ones, move the work out of the return value and into a `resources.track` call so you control its position in the stack.
 
-## When cleanup itself fails
+## When the suite lifecycle fails
 
-A failing cleanup never stops the remaining cleanups from being attempted. Every tracked callback is tried, and only then are the failures reported together. Three outcomes are possible:
+A failing cleanup never stops the remaining cleanups from being attempted. Every tracked callback is tried, and only then are the failures reported together. The outcomes:
 
 Only cleanup failed. A `ResourceCleanupError` is thrown, carrying every failed description and error in its `failures` property.
 
@@ -84,7 +101,9 @@ Suite setup failed, and suite cleanup also failed. Both are preserved in an `Agg
 
 Suite setup failed and cleanup succeeded. The setup error is rethrown. A thrown non-`Error` value is wrapped in an `Error` whose message is its string form and whose `cause` is the original value.
 
-A failing test body is not part of this. It never reaches the suite lifecycle, so it is reported on its own, and if that test's own `resources` cleanup also fails you get two separate errors rather than an aggregate.
+Suite setup succeeded but declared nothing. The declaration error takes the same path as a setup failure, with the same aggregation if cleanup then fails too.
+
+A failing test body is not part of this. It never reaches the suite lifecycle, so it is reported on its own against that test's tracker.
 
 [Resource Tracking and Cleanup](Resource-Tracking-and-Cleanup) covers what happens to resources whose cleanup failed, including the fact that they stay tracked and can be retried.
 

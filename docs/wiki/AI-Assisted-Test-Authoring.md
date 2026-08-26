@@ -40,22 +40,31 @@ These tests use `@software-hardware-integration-lab/vitest-integration-test-harn
 
 ## Resource cleanup
 
-- Register cleanup with `resources.track(description, cleanup)` on the line after the resource exists. Never at the end of the test, and never in a `try`/`finally` block.
+- Create every resource through `await resources.track(description, setup, cleanup)`. Never create it with a bare call and register cleanup afterward, and never use a `try`/`finally` block.
+- `setup` receives an `AbortSignal` and returns the resource. `cleanup` receives exactly what `setup` returned.
+- `track` resolves to an internal key, not to the resource. When the test body needs the resource, assign it to a variable inside `setup` and return it.
+- Forward the `signal` argument to any client call that accepts one.
+- Every test must declare. Call `track`, or call `resources.markNoResources()` for a test that creates and modifies nothing. A test that does neither fails after its body passes.
+- Never call both in the same run. `track` after `markNoResources()` throws, and so does the reverse.
 - Write the description for a human reading a failure. `Widget ${ widget.id }` beats `widget`.
 - Every cleanup action must succeed when the resource is already gone. Treat "not found" as success.
 - Cleanup runs last-in-first-out, so resources are removed in the reverse of the order they were created.
+- A failed setup throws `ResourceSetupError` and aborts the tracker, so every later `track` call throws without running. Do not write recovery logic around this.
 
 ## Suites
 
 - Call `integrationSuite` only at the top level of a test file. Never inside `describe` or inside another function.
-- Its `setup` must return a cleanup function.
+- Its `setup` must return a cleanup function AND must declare on `context.resources`, exactly as a test does.
 - That returned cleanup runs BEFORE anything tracked with `context.resources` during setup, because it is registered last and cleanup is LIFO.
-- Track things created part-way through setup with `context.resources` as soon as they exist. Use the return value only for restoring state once setup has fully succeeded.
+- Create things needed part-way through setup with `context.resources.track`. Use the return value only for restoring state once setup has fully succeeded.
+- Tests inside a suite still declare for themselves. Reading suite state is not a declaration; those tests call `resources.markNoResources()`.
 
 ## Readiness
 
 - Declare what a suite needs with `createEnvironmentProfile`, or with `requiredEnvironmentVariables` and `readinessChecks` when it is one file.
+- A profile returns `integrationTest`, `integrationSuite`, and `profile`. Use `profile.integrationTest` where you would use the standalone `integrationTest`.
 - Environment variables are validated before readiness checks run.
+- Readiness is evaluated once per file unless the profile sets `scope` to `test` or `worker`. Leave `scope` alone unless asked for it.
 - Name a readiness check as a claim, such as `cache responds to ping` rather than `cache`. The name becomes the skip message.
 - Never hand-write a check that skips a test because a credential is missing. Declare the requirement and let the readiness gate skip it.
 
@@ -77,9 +86,9 @@ These tests use `@software-hardware-integration-lab/vitest-integration-test-harn
 
 ## If you trim it, keep these
 
-Most of the rules above save you an edit. Four of them save you a debugging session, because breaking them produces a test that passes rather than a test that fails.
+Most of the rules above save you an edit. Four of them save you a debugging session.
 
-Registering cleanup at the end of a test works until an assertion throws before it, and then it leaks quietly for weeks.
+Creating a resource outside `track` is the one that costs real money. The declaration rule catches the test that creates nothing and says nothing, but it cannot catch a test that creates a widget with a bare call and then tracks something else. That test declares, passes, and leaks.
 
 A cleanup that treats "already gone" as an error turns a clean run into a `ResourceCleanupError` about work that was already done.
 
@@ -99,7 +108,7 @@ It also reads `.github/copilot-instructions.md` and `AGENTS.md` from the reposit
 
 An instruction file biases output. It does not constrain it. Treat generated integration tests as a draft, and check two things by hand every time.
 
-Check where cleanup is registered. This is the rule assistants drop first when a test gets long, and it is the one that costs you real resources.
+Check that every resource is created inside a `track` call. This is the rule assistants drop first when a test gets long: a bare `await createWidget(...)` with the tracking bolted on nearby reads fine and leaks. It is also the one that costs you real resources.
 
 Check that requirements are declared rather than asserted. A generated test that reads `if (!process.env['SERVICE_TOKEN']) { return; }` has quietly turned itself into a test that never runs and always passes.
 

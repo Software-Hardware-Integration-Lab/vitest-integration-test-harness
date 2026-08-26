@@ -2,7 +2,7 @@
 
 Everything the package exports, grouped by what it is for. Import all of it from the package root. Paths under `src` are not a supported entry point and change without notice.
 
-The package exports 33 names: 13 values and 20 types.
+The package exports 34 names: 14 values and 20 types.
 
 ## Integration
 
@@ -10,10 +10,10 @@ The package exports 33 names: 13 values and 20 types.
 | --- | --- | --- |
 | `integrationTest` | Function | Vitest test API with readiness gating, resource tracking, and failure diagnostics already attached. Use it where you would use `test`. |
 | `integrationSuite` | Function | Creates a test API with paired file-scoped setup and cleanup, built on `integrationTest`. Call it at a file's top level. |
-| `createSuiteRunner` | Function | The same file-scoped lifecycle, bound to a test API you supply rather than the default. Used internally by a profile's `suite`, and available when you have built your own base test. |
-| `createEnvironmentProfile` | Function | Bundles environment variables, readiness checks, fixtures, and metadata into a reusable profile. Returns `test`, `suite`, and a frozen `profile` snapshot. |
+| `createSuiteRunner` | Function | The same file-scoped lifecycle, bound to a test API you supply rather than the default. Used internally by a profile's `integrationSuite`, and available when you have built your own base test. |
+| `createEnvironmentProfile` | Function | Bundles environment variables, readiness checks, fixtures, metadata, and readiness scope into a reusable profile. Returns `integrationTest`, `integrationSuite`, and a frozen `profile` snapshot. |
 
-`integrationSuite(options)` and `createSuiteRunner(baseTest, options)` both take `IntegrationSuiteOptions`. `setup` must return a cleanup function; it is registered before any test body runs.
+`integrationSuite(options)` and `createSuiteRunner(baseTest, options)` both take `IntegrationSuiteOptions`. `setup` must return a cleanup function and must declare resources on the tracker it is given; the returned cleanup is registered after that declaration is checked, and before any test body runs.
 
 | Export | Kind | Shape |
 | --- | --- | --- |
@@ -25,13 +25,15 @@ The package exports 33 names: 13 values and 20 types.
 
 | Export | Kind | Shape |
 | --- | --- | --- |
-| `EnvironmentProfile` | Type | A profile definition: `name`, `dependencyType`, `riskLevel`, `readinessChecks`, optional `requiredEnvironmentVariables`, `fixtures`, and `tags`. |
-| `EnvironmentProfileResult` | Type | What `createEnvironmentProfile` returns: `test`, `suite`, and a readonly `profile`. |
+| `EnvironmentProfile` | Type | A profile definition: `name`, `dependencyType`, `riskLevel`, `readinessChecks`, optional `requiredEnvironmentVariables`, `fixtures`, `tags`, and `scope`. |
+| `EnvironmentProfileResult` | Type | What `createEnvironmentProfile` returns: `integrationTest`, `integrationSuite`, and a readonly `profile`. |
 | `ProfileFixtures` | Type | Custom fixture definitions for a profile, typed from Vitest's fixture extension API. Resolves to `never` if a reserved fixture name is used. |
 | `DependencyType` | Type | Open union classifying the dependency. Suggested: `Database`, `InternalApi`, `ExternalApi`, `MessageQueue`, `BlobStorage`, `Cache`, `FileSystem`, `AuthenticationProvider`, `IdentityProvider`, `EmailService`, `NotificationService`, `SearchService`, `ConfigurationProvider`, `ThirdPartyService`. Any other string is accepted. |
 | `RiskLevel` | Type | Open union describing how setup and teardown can affect other tests. Suggested: `Blocking`, `Important`, `Optional`. Any other string is accepted. |
 
 Reserved fixture names that a profile cannot override: `environment`, `readinessGate`, `resources`, `diagnostics`. Using one throws when the profile is created.
+
+`scope` sets when the profile's readiness is evaluated: `file` (the default) once per test file, `test` once per test, `worker` once per Vitest worker process.
 
 ## Environment
 
@@ -50,11 +52,27 @@ Both functions return `EnvironmentReadiness`. `evaluateEnvironmentVariables` is 
 
 | Export | Kind | Purpose |
 | --- | --- | --- |
-| `ResourceTracker` | Class | Tracks cleanup callbacks and runs them in LIFO order. `track(description, cleanup)`, `cleanupAll()`, `getTrackedDescriptions()`. |
+| `ResourceTracker` | Class | Runs paired resource setup and cleanup, cleaning up in LIFO order. Constructed as `new ResourceTracker(name, abortSignal?)`. |
 | `ResourceCleanupError` | Error | Thrown after every cleanup has been attempted, when one or more failed. `failures` holds each description and error; `cause` is the first underlying error. |
-| `ResourceCleanupFailure` | Type | `{ description, error }` for a single failed cleanup. |
+| `ResourceSetupError` | Error | Thrown when a resource setup fails, or when one is attempted on an aborted tracker. Same `failures` and `cause` shape. |
+| `ResourceCleanupFailure` | Type | `{ description, error }` for a single failed setup or cleanup. |
+
+`ResourceTracker` methods:
+
+| Method | Purpose |
+| --- | --- |
+| `track(description, setup, cleanup)` | Runs `setup(signal)`, registers `cleanup` with its result once setup succeeds, and counts as the tracker's declaration. Async. Resolves to an internal key, not to the resource. |
+| `markNoResources()` | Declares that this run creates and modifies nothing. Mutually exclusive with `track`. |
+| `registerCleanup(description, cleanup)` | Registers a zero-argument cleanup with no setup. Does not satisfy the declaration. |
+| `assertDeclared()` | Throws unless `track` or `markNoResources()` was called. The lifecycle calls this for you. |
+| `cleanupAll()` | Runs every registered cleanup in LIFO order. Async. |
+| `getTrackedDescriptions()` | Snapshot of the descriptions still awaiting cleanup, in registration order. |
 
 `cleanupAll()` never aborts early. Resources whose cleanup failed remain tracked and are retried by a later call; successful ones are removed.
+
+A failed setup aborts the tracker. The signal handed to `setup` fires, and every later `track` call throws `ResourceSetupError` without running its setup. Passing your own `AbortSignal` to the constructor has the same effect from the outside.
+
+`ResourceCleanupFailure` is the entry type for both error classes. It was named for cleanup and now covers setup failures too.
 
 ## Diagnostics
 

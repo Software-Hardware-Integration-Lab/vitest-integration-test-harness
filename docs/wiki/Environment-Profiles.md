@@ -27,28 +27,53 @@ export const cache = createEnvironmentProfile({
 
 You get back three things.
 
-`cache.test` is a test API with the profile's readiness already wired in, plus any custom fixtures. Use it where you would use `integrationTest`.
+`cache.integrationTest` is a test API with the profile's readiness already wired in, plus any custom fixtures. Use it where you would use `integrationTest`.
 
-`cache.suite(options)` is the same thing with a file-scoped setup and cleanup pair attached. It takes the same options as [`integrationSuite`](Test-and-Suite-Lifecycle).
+`cache.integrationSuite(options)` is the same thing with a file-scoped setup and cleanup pair attached. It takes the same options as [`integrationSuite`](Test-and-Suite-Lifecycle).
 
 `cache.profile` is a frozen snapshot of the metadata. It exists so tooling can read what a suite depends on without executing anything.
-
-## Checks run once per file
-
-The readiness evaluation is file-scoped. Every test file that uses `cache.test` evaluates the variables and runs the checks once, and every test in that file shares the result.
-
-That matters when a check costs something. The `pingCache()` above is a network call, so it fires once per test file using this profile, not once per test and not once per run. Ten test files means ten pings. If a check is expensive enough that this is a problem, cache the result in your own code; the harness will not do it for you across files.
 
 Using it looks like an ordinary test file:
 
 ```ts
 import { expect } from 'vitest';
 import { cache } from './support/cacheProfile.js';
+import { readSession } from './support/cacheClient.js';
 
-cache.test('stores and reads a session', async ({ resources }) => {
-    expect(resources).toBeDefined();
+cache.integrationTest('reads a session', async ({ resources }) => {
+    resources.markNoResources();
+
+    expect(await readSession('session-1')).toBeDefined();
 });
 ```
+
+## Checks run once per file
+
+The readiness evaluation is file-scoped by default. Every test file that uses `cache.integrationTest` evaluates the variables and runs the checks once, and every test in that file shares the result.
+
+That matters when a check costs something. The `pingCache()` above is a network call, so it fires once per test file using this profile, not once per test and not once per run. Ten test files means ten pings. If a check is expensive enough that this is a problem, cache the result in your own code; the harness will not do it for you across files.
+
+## Changing when readiness is evaluated
+
+`scope` moves that evaluation. It takes `file`, which is the default, `test`, or `worker`.
+
+```ts no-check
+export const cache = createEnvironmentProfile({
+    'name': 'session-cache',
+    'dependencyType': 'Cache',
+    'riskLevel': 'Optional',
+    'scope': 'test',
+    'readinessChecks': [
+        { 'name': 'cache responds to ping', 'verify': pingCache }
+    ]
+});
+```
+
+`test` re-evaluates for every test in the file. Reach for it when a dependency can go away mid-file, such as a container that gets restarted or a lease that expires, and you would rather the remaining tests skip than fail on a dependency that was ready when the file started. It costs one evaluation per test, so an expensive probe multiplies accordingly.
+
+`worker` evaluates once per Vitest worker process and shares the result across every file that worker runs. It is the cheapest option and the least current: a probe that passed at the start of a long run is still reported as passing at the end.
+
+The default sits between the two on both counts, which is why it is the default. Change it when you have a specific reason, not as a general optimization.
 
 ## Metadata
 

@@ -31,16 +31,28 @@ import { expect } from 'vitest';
 import { integrationTest } from '@software-hardware-integration-lab/vitest-integration-test-harness';
 
 integrationTest('creates and reads a widget', async ({ resources }) => {
-    const widget = await createWidget('example');
+    let widget!: Widget;
 
-    resources.track(`Widget ${ widget.id }`, async () => { await deleteWidget(widget.id); });
+    await resources.track(
+        'example widget',
+        async (): Promise<Widget> => {
+            widget = await createWidget('example');
+
+            return widget;
+        },
+        async (created): Promise<void> => { await deleteWidget(created.id); }
+    );
 
     expect(await getWidget(widget.id)).toEqual(widget);
 });
 ```
 
-Register cleanup immediately after creating or mutating a resource. Cleanup actions can be synchronous or
-asynchronous and should tolerate a resource that has already been removed.
+Create resources through `resources.track`, which pairs the setup with its undo and registers the undo the moment
+setup succeeds. Cleanup actions can be synchronous or asynchronous and should tolerate a resource that has already
+been removed.
+
+Every test declares what it does. A test that creates nothing calls `resources.markNoResources()` instead; a test
+that does neither fails after its body passes.
 
 That test runs with no configuration, because every environment is considered ready until a suite says otherwise.
 
@@ -53,6 +65,7 @@ Full documentation lives in the
 - [How-To Recipes](https://github.com/Software-Hardware-Integration-Lab/vitest-integration-test-harness/wiki/How-To)
 - [AI-Assisted Test Authoring](https://github.com/Software-Hardware-Integration-Lab/vitest-integration-test-harness/wiki/AI-Assisted-Test-Authoring)
 - [Test and Suite Lifecycle](https://github.com/Software-Hardware-Integration-Lab/vitest-integration-test-harness/wiki/Test-and-Suite-Lifecycle)
+- [Resource Tracking and Cleanup](https://github.com/Software-Hardware-Integration-Lab/vitest-integration-test-harness/wiki/Resource-Tracking-and-Cleanup)
 - [Readiness and Environment Variables](https://github.com/Software-Hardware-Integration-Lab/vitest-integration-test-harness/wiki/Readiness-and-Environment-Variables)
 - [Environment Profiles](https://github.com/Software-Hardware-Integration-Lab/vitest-integration-test-harness/wiki/Environment-Profiles)
 - [Retry and Polling](https://github.com/Software-Hardware-Integration-Lab/vitest-integration-test-harness/wiki/Retry-and-Polling)
@@ -73,8 +86,9 @@ Import everything from the package root. Paths under `src` are not a supported e
 | `evaluateEnvironmentVariables` | Function | Validates required environment variables and aggregates every failure into one reason. |
 | `retry` | Function | Repeats a signal-aware operation until it succeeds, times out, hits the attempt limit, is cancelled, or `shouldRetry` rejects an error. |
 | `pollUntil` | Function | Uses `retry` to repeat a signal-aware check until its value satisfies a predicate. |
-| `ResourceTracker` | Class | Tracks cleanup callbacks and runs them in LIFO order. |
+| `ResourceTracker` | Class | Runs paired resource setup and cleanup, cleaning up in LIFO order. |
 | `ResourceCleanupError` | Error class | Aggregates cleanup failures after every tracked callback has been attempted. |
+| `ResourceSetupError` | Error class | Reports a failed resource setup and aborts the tracker's remaining setups. |
 | `RetryTimeoutError` | Error class | Reports a retry or poll timeout with the attempt count and most recent error. |
 | `MaxRetryAttemptsReachedError` | Error class | Reports that the retry attempt limit was reached before the timeout. |
 | `PollPredicateMismatchError` | Error class | Holds the most recent value that did not satisfy a polling predicate. |
@@ -82,8 +96,8 @@ Import everything from the package root. Paths under `src` are not a supported e
 | `ReadinessCheck` | Type | A named synchronous or asynchronous verification that returns `true`, `false`, or throws. |
 | `TestableEnvironmentVariable` | Type | A required environment variable key with an optional value check. |
 | `EnvironmentVariableCheckResult` | Type | The success flag and optional reason returned by a variable's check. |
-| `EnvironmentProfile` | Type | A profile definition: metadata, readiness checks, variables, fixtures, and tags. |
-| `EnvironmentProfileResult` | Type | The `test`, `suite`, and frozen `profile` returned by `createEnvironmentProfile`. |
+| `EnvironmentProfile` | Type | A profile definition: metadata, readiness checks, variables, fixtures, tags, and readiness scope. |
+| `EnvironmentProfileResult` | Type | The `integrationTest`, `integrationSuite`, and frozen `profile` returned by `createEnvironmentProfile`. |
 | `ProfileFixtures` | Type | Custom fixture definitions for a profile, typed from Vitest's fixture extension API. |
 | `DependencyType` | Type | Open union classifying a dependency, such as `Database` or `BlobStorage`. |
 | `RiskLevel` | Type | Open union describing how a dependency's setup and teardown can affect other tests. |

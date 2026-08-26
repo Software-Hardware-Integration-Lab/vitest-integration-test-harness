@@ -97,4 +97,10 @@ Neither mechanism is on unless you turn it on. Omit `requiredEnvironmentVariable
 
 This is what lets structural tests, the ones that check your code rather than a live service, run in any checkout with no configuration at all. They never declare a requirement, so nothing ever gates them.
 
+## When the evaluation happens
+
+The `extend` call above pins `environment` to `file` scope, which is also what a profile does unless you say otherwise. Both mechanisms then run once per test file and every test in that file reads the same answer.
+
+A profile can move that with its `scope` field, to `test` for a fresh evaluation per test or `worker` for one shared across every file a Vitest worker runs. The trade is currency against cost, and [Environment Profiles](Environment-Profiles) has the reasoning.
+
 The usual way to declare both together is a profile rather than the `extend` call above. See [Environment Profiles](Environment-Profiles). If tests are skipping and you want to know why, [Troubleshooting](Troubleshooting) covers reading the skip message.

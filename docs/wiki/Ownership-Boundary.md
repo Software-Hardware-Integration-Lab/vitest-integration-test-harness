@@ -12,11 +12,11 @@ The package owns mechanisms that hold for any dependency, anywhere:
 - Readiness gating and the skip behavior that follows from it
 - Environment-variable schema evaluation
 - The profile container and its metadata
-- Resource tracking, LIFO cleanup, and cleanup-failure aggregation
+- Paired resource setup and cleanup, LIFO ordering, and setup- and cleanup-failure aggregation
 - Diagnostic capture, redaction, and reporter dispatch
 - Retry and polling
 
-None of that names a vendor. `evaluateReadiness` runs a function you wrote and reads a boolean; it has no idea whether the function pinged a database or checked a directory. `ResourceTracker` calls a cleanup callback you registered; it does not know what it is deleting.
+None of that names a vendor. `evaluateReadiness` runs a function you wrote and reads a boolean; it has no idea whether the function pinged a database or checked a directory. `ResourceTracker` runs a setup callback you supplied and hands its result back to a cleanup callback you supplied; it does not know what it created or what it is deleting.
 
 ## What your application owns
 

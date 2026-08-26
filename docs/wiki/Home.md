@@ -34,4 +34,4 @@ If you would rather see the whole picture first, [Order Service](Example-Order-S
 
 If your team writes tests with a coding assistant, [AI-Assisted Test Authoring](AI-Assisted-Test-Authoring) has an instruction file to drop into your repository. Without one you get generic Vitest patterns, wrong in the same few ways every time.
 
-For a specific mechanism, the sidebar lists each one. For a specific export, [API Reference](API-Reference) covers all 33.
+For a specific mechanism, the sidebar lists each one. For a specific export, [API Reference](API-Reference) covers all 34.
