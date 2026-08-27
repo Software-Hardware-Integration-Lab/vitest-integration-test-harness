@@ -13,8 +13,10 @@ export interface ITrackedResource<T> {
     /** The result of the setup action, if it has completed. */
     'setupResult'?: T;
 
+    /** The error raised during setup, if it failed. */
     'setupError'?: ResourceFailure;
 
+    /** The error raised during cleanup, if it failed. */
     'cleanupError'?: ResourceFailure;
 }
 
