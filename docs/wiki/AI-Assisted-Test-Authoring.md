@@ -6,17 +6,11 @@ Those are the generic Vitest patterns, which is what anything falls back on with
 
 ## Where the file goes
 
-GitHub Copilot reads several instruction files.
+GitHub Copilot instruction-file discovery, frontmatter, and precedence vary by client and release. Consult the [GitHub Copilot custom instructions documentation](https://docs.github.com/en/copilot/customizing-copilot/adding-repository-custom-instructions-for-github-copilot) and your client's documentation for the supported locations and fields.
 
-| File | Applies to | Frontmatter |
-| --- | --- | --- |
-| `.github/instructions/*.instructions.md` | Files matching an `applyTo` glob | `applyTo`, `description`, `excludeAgent` |
-| `.github/copilot-instructions.md` | The whole repository | none |
-| `.github/agents/*.agent.md` | An agent you invoke by name | `name`, `description`, `tools` |
+For repositories with integration tests, a glob-scoped instruction file is usually the right starting point. It confines harness-specific rules to the test files they govern. Repository-wide instructions are the right home for what is true everywhere, like your lint rules.
 
-Use the glob-scoped one. `applyTo` is what keeps rules about resource cleanup from reaching a React component. Repository-wide instructions are the right home for what is true everywhere, like your lint rules.
-
-The IDE, the CLI, and Copilot code review all read `.github/instructions`, so one file covers every surface your team uses. To reach some but not others, `excludeAgent` takes `code-review` or `cloud-agent`.
+This example uses `.github/instructions/integration-tests.instructions.md` with an `applyTo` glob. Adjust the location and supported frontmatter to match the Copilot client your team uses.
 
 ## The instruction file
 
@@ -98,11 +92,7 @@ Recording an object that gets mutated later prints the final state under a label
 
 ## Copilot CLI
 
-The CLI reads the same file. It picks up `.github/instructions/**/*.instructions.md` and honors `applyTo`, so the file you added for the IDE works in a terminal session with nothing else to do.
-
-It also reads `.github/copilot-instructions.md` and `AGENTS.md` from the repository, and `~/.copilot/copilot-instructions.md` and `~/.copilot/instructions/**/*.instructions.md` from your own machine. There is no defined precedence between them. The CLI combines whatever applies and drops exact duplicates, so putting the same rules in two of these gains you nothing, and contradicting yourself across two of them leaves nothing to decide which version wins.
-
-`/instructions` lists the instruction files discovered for the session and lets you switch individual ones off. That covers both whether your file loaded and whether it is the thing changing the output.
+Copilot CLI support for repository instruction files and instruction-management commands can change between releases. Consult the current [Copilot CLI documentation](https://docs.github.com/en/copilot/how-tos/copilot-cli/use-copilot-cli) to confirm which instruction files are discovered, which fields are supported, and how to inspect the instructions active in a session.
 
 ## What this does not do
 
