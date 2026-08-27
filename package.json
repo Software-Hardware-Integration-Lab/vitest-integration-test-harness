@@ -22,7 +22,7 @@
         "setup",
         "teardown"
     ],
-    "packageManager": "npm@12.0.1",
+    "packageManager": "npm@12.0.2",
     "devEngines": {
         "runtime": {
             "name": "node",
@@ -44,14 +44,14 @@
     "author": "Michael Howard <michael_howard@shi.com>",
     "license": "MIT",
     "peerDependencies": {
-        "vitest": ">=4.1.10 <5"
+        "vitest": ">=4.1.11 <5"
     },
     "devDependencies": {
         "@software-hardware-integration-lab/development-utilities": "~3.0.0",
-        "@types/node": "~26.1.2",
-        "@vitest/coverage-v8": "~4.1.10",
+        "@types/node": "~26.3.0",
+        "@vitest/coverage-v8": "~4.1.11",
         "eslint-plugin-perfectionist": "^5.10.1",
         "typescript": "~6.0.3",
-        "vitest": "~4.1.10"
+        "vitest": "~4.1.11"
     }
 }
