@@ -22,6 +22,12 @@ export default class ResourceTracker {
     /** Tracks whether the test has declared that it will create or modify resources. */
     #declaration: ResourceDeclaration = 'undecided';
 
+    /** External signal whose listener must be removed when the tracker is disposed. */
+    #externalAbortSignal?: AbortSignal;
+
+    /** Listener that propagates cancellation from the external signal. */
+    #externalAbortListener?: () => void;
+
     /**
      * Creates a resource tracker scoped to a single test.
      * @param testName Name of the test this tracker instance belongs to, used for diagnostic output.
@@ -32,14 +38,20 @@ export default class ResourceTracker {
 
         this.#abortController = new AbortController();
 
+        if (abortSignal?.aborted) {
+            this.#abortController.abort(abortSignal.reason);
+
+            return;
+        }
+
         if (abortSignal) {
-            if (abortSignal.aborted) {
+            this.#externalAbortSignal = abortSignal;
+
+            this.#externalAbortListener = (): void => {
                 this.#abortController.abort(abortSignal.reason);
-            } else {
-                abortSignal.addEventListener('abort', () => {
-                    this.#abortController.abort(abortSignal.reason);
-                }, { 'once': true });
-            }
+            };
+
+            abortSignal.addEventListener('abort', this.#externalAbortListener, { 'once': true });
         }
     }
 
@@ -174,5 +186,19 @@ export default class ResourceTracker {
         }
 
         this.#declaration = 'no-resources';
+    }
+
+    /**
+     * Detaches the optional external abort signal. Call this after the tracker is no longer needed when an external
+     * signal was supplied to the constructor. This does not cancel the tracker or run cleanup.
+     */
+    detachAbortSignal(): void {
+        if (this.#externalAbortSignal && this.#externalAbortListener) {
+            this.#externalAbortSignal.removeEventListener('abort', this.#externalAbortListener);
+
+            this.#externalAbortSignal = void 0;
+
+            this.#externalAbortListener = void 0;
+        }
     }
 }

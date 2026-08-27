@@ -360,6 +360,22 @@ void describe('ResourceTracker', () => {
         await expect(trackPromise).rejects.toBeInstanceOf(ResourceSetupError);
     });
 
+    it('does not propagate an external abort after detachAbortSignal', async () => {
+        const controller = new AbortController();
+
+        const tracker = new ResourceTracker('unit-test', controller.signal);
+
+        tracker.detachAbortSignal();
+
+        controller.abort(new Error('external abort after detachAbortSignal'));
+
+        await expect(tracker.track(
+            'first',
+            (): Promise<object> => Promise.resolve({}),
+            () => { /* No-op cleanup */ }
+        )).resolves.toEqual({});
+    });
+
     it('throws when track() is called after markNoResources()', async () => {
         const tracker = new ResourceTracker('unit-test');
 

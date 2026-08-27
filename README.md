@@ -199,8 +199,10 @@ every error for backward compatibility.
 | `IntegrationSuiteContext` | Type | File-scoped resources available during integration suite setup. |
 | `IntegrationSuiteOptions` | Type | Configures an integration suite's name and paired setup/cleanup. |
 
-`ResourceTracker` is available for custom fixture composition. Most suites should use the automatic `resources` and
-`diagnostics` fixtures provided by `integrationTest`.
+`ResourceTracker` is available for custom fixture composition. When passing an external `AbortSignal` to its
+constructor, call `detachAbortSignal()` after the fixture lifecycle completes to detach the signal listener. `detachAbortSignal()` does
+not run cleanup or cancel tracked setup actions. Most suites should use the automatic `resources` and `diagnostics`
+fixtures provided by `integrationTest`.
 
 ## Source Layout
 
