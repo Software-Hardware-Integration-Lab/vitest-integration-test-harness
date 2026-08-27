@@ -110,4 +110,4 @@ The package's own tests need no credentials and no configuration:
 npm test
 ```
 
-That runs 7 files: 141 pass and 6 skip. The 6 skips are intentional. They are the fixtures that demonstrate the readiness gate skipping unready tests, so they skip themselves. A clean checkout with no environment variables set produces exactly that result.
+The suite should complete without unexpected failures. Its skips are intentional: the fixtures that demonstrate the readiness gate skipping unready tests skip themselves. A clean checkout with no environment variables set produces that expected result.
