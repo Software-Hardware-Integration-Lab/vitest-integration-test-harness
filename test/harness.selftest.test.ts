@@ -92,6 +92,22 @@ void describe('evaluateReadiness', () => {
 });
 
 void describe('ResourceTracker', () => {
+    it('returns the setup result and supplies it to cleanup', async () => {
+        const tracker = new ResourceTracker('unit-test');
+
+        const widget = { 'id': 'widget-1' };
+
+        const cleanup = vi.fn();
+
+        const result = await tracker.track('widget', (): Promise<typeof widget> => Promise.resolve(widget), cleanup);
+
+        expect(result).toBe(widget);
+
+        await tracker.cleanupAll();
+
+        expect(cleanup).toHaveBeenCalledExactlyOnceWith(widget);
+    });
+
     it('throws ResourceSetupError when setup fails and preserves prior resources for cleanup', async () => {
         const tracker = new ResourceTracker('unit-test');
 

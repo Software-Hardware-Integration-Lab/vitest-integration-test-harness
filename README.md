@@ -21,16 +21,18 @@ import { expect } from 'vitest';
 import { integrationTest } from '@software-hardware-integration-lab/vitest-integration-test-harness';
 
 integrationTest('creates and reads a widget', async ({ resources }) => {
-    const widget = await createWidget('example');
-
-    resources.track(`Widget ${ widget.id }`, async () => { await deleteWidget(widget.id); });
+  const widget = await resources.track(
+    'example widget',
+    (): Promise<Widget> => createWidget('example'),
+    async (created): Promise<void> => { await deleteWidget(created.id); }
+  );
 
     expect(await getWidget(widget.id)).toEqual(widget);
 });
 ```
 
-Register cleanup immediately after creating or mutating a resource. Cleanup actions can be synchronous or
-asynchronous and should tolerate a resource that has already been removed.
+`track` creates the resource immediately, returns it to the test body, and registers its cleanup before resolving.
+Cleanup actions can be synchronous or asynchronous and should tolerate a resource that has already been removed.
 
 ## File-Scoped Lifecycles
 
@@ -45,10 +47,11 @@ import { integrationSuite } from '@software-hardware-integration-lab/vitest-inte
 const test = integrationSuite({
   'name': 'widget suite state',
   'setup': async ({ resources }) => {
-    const widget = await createWidget('shared-widget');
-
-    // Track mutations made during setup as soon as they succeed.
-    resources.track(`Widget ${ widget.id }`, async () => { await deleteWidget(widget.id); });
+    await resources.track(
+      'shared widget',
+      (): Promise<Widget> => createWidget('shared-widget'),
+      async (created): Promise<void> => { await deleteWidget(created.id); }
+    );
 
     // Returning cleanup is required and is registered before any test body runs.
     return async () => {

@@ -47,7 +47,7 @@ export default class ResourceTracker {
         description: string,
         setup: (signal: AbortSignal) => Promise<T>,
         cleanup: (resource: T) => void | Promise<void>
-    ): Promise<string> {
+    ): Promise<T> {
         if (this.#declaration === 'no-resources') {
             throw new Error(`Cannot track '${ description }' after markNoResources() was called.`);
         }
@@ -69,10 +69,12 @@ export default class ResourceTracker {
 
         const resource: TrackedResource<T> = new TrackedResource<T>(description, cleanup);
 
-        const key = crypto.randomUUID();
+        let setupResult: T;
 
         try {
-            resource.setupResult = await setup(this.#abortController.signal);
+            setupResult = await setup(this.#abortController.signal);
+
+            resource.setupResult = setupResult;
         } catch (error: unknown) {
             resource.setupError = {
                 'description': resource.description,
@@ -86,7 +88,7 @@ export default class ResourceTracker {
 
         this.#register(resource);
 
-        return key;
+        return setupResult;
     }
 
     /**
