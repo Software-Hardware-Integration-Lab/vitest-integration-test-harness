@@ -84,4 +84,13 @@ jobs:
           fi
 
           git commit -m "docs: sync wiki from ${{ steps.source-revision.outputs.sha }}"
+
+          if ! git pull --rebase -X theirs; then
+              git rebase --abort || true
+
+              echo "::error::The wiki changed during this run and the sync commit could not be replayed."
+              echo "::error::A page was most likely edited or deleted from the Wiki tab. Re-run this workflow."
+              exit 1
+          fi
+
           git push
