@@ -22,7 +22,7 @@ integrationTest('reads a widget', async ({ resources }) => {
 });
 ```
 
-Read-only tests get `markNoResources()`. Tests that create something get it too for now, since their cleanup is still in a `try`/`finally` block and pass two is where that moves.
+Read-only tests get `markNoResources()`. During this transitional pass, tests with existing `try`/`finally` cleanup may also call `markNoResources()`. It means no resources are registered with the harness yet; it does not assert that the test has no external side effects. Remove it when pass two moves that cleanup to `resources.track(...)`.
 
 Behavior is otherwise untouched. No readiness is declared, so the environment counts as ready, and the fixtures the test never mentions cost it nothing. What you gain immediately is the failure output: when that test breaks, you get a diagnostics header naming it rather than a bare stack.
 
