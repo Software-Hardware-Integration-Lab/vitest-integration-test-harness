@@ -2,8 +2,6 @@
 
 Everything the package exports, grouped by what it is for. Import all of it from the package root. Paths under `src` are not a supported entry point and change without notice.
 
-The package exports 34 names: 14 values and 20 types.
-
 ## Integration
 
 | Export | Kind | Purpose |
