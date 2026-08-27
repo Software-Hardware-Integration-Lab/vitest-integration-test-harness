@@ -31,15 +31,9 @@ import { expect } from 'vitest';
 import { integrationTest } from '@software-hardware-integration-lab/vitest-integration-test-harness';
 
 integrationTest('creates and reads a widget', async ({ resources }) => {
-    let widget!: Widget;
-
-    await resources.track(
+    const widget = await resources.track(
         'example widget',
-        async (): Promise<Widget> => {
-            widget = await createWidget('example');
-
-            return widget;
-        },
+        (): Promise<Widget> => createWidget('example'),
         async (created): Promise<void> => { await deleteWidget(created.id); }
     );
 
@@ -47,9 +41,8 @@ integrationTest('creates and reads a widget', async ({ resources }) => {
 });
 ```
 
-Create resources through `resources.track`, which pairs the setup with its undo and registers the undo the moment
-setup succeeds. Cleanup actions can be synchronous or asynchronous and should tolerate a resource that has already
-been removed.
+`track` creates the resource, registers its cleanup before resolving, and hands the resource back to the test body.
+Cleanup actions can be synchronous or asynchronous and should tolerate a resource that has already been removed.
 
 Every test declares what it does. A test that creates nothing calls `resources.markNoResources()` instead; a test
 that does neither fails after its body passes.
@@ -86,7 +79,7 @@ Import everything from the package root. Paths under `src` are not a supported e
 | `evaluateEnvironmentVariables` | Function | Validates required environment variables and aggregates every failure into one reason. |
 | `retry` | Function | Repeats a signal-aware operation until it succeeds, times out, hits the attempt limit, is cancelled, or `shouldRetry` rejects an error. |
 | `pollUntil` | Function | Uses `retry` to repeat a signal-aware check until its value satisfies a predicate. |
-| `ResourceTracker` | Class | Runs paired resource setup and cleanup, cleaning up in LIFO order. |
+| `ResourceTracker` | Class | Runs paired resource setup and cleanup, returns each resource, and cleans up in LIFO order. |
 | `ResourceCleanupError` | Error class | Aggregates cleanup failures after every tracked callback has been attempted. |
 | `ResourceSetupError` | Error class | Reports a failed resource setup and aborts the tracker's remaining setups. |
 | `RetryTimeoutError` | Error class | Reports a retry or poll timeout with the attempt count and most recent error. |
@@ -113,8 +106,10 @@ Import everything from the package root. Paths under `src` are not a supported e
 | `IntegrationSuiteContext` | Type | File-scoped resources available during integration suite setup. |
 | `IntegrationSuiteOptions` | Type | Configures an integration suite's name and paired setup/cleanup. |
 
-`ResourceTracker` and `createSuiteRunner` are available for custom fixture composition. Most suites should use the
-automatic `resources` and `diagnostics` fixtures provided by `integrationTest`.
+`ResourceTracker` and `createSuiteRunner` are available for custom fixture composition. If you pass an external
+`AbortSignal` to the tracker's constructor, call `detachAbortSignal()` once the fixture lifecycle completes to remove
+the listener; it neither runs cleanup nor cancels tracked setup actions. Most suites should use the automatic
+`resources` and `diagnostics` fixtures provided by `integrationTest`.
 
 ## Scripts
 

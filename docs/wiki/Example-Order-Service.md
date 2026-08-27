@@ -67,15 +67,9 @@ const test = orderApi.integrationTest;
 test('an order reaches a terminal status', async ({ resources, diagnostics }) => {
     diagnostics.addRedactionRules(['customerEmail']);
 
-    let order!: Order;
-
-    await resources.track(
+    const order = await resources.track(
         'demo widget order',
-        async (signal): Promise<Order> => {
-            order = await createOrder({ 'sku': 'demo-widget', 'quantity': 1 }, signal);
-
-            return order;
-        },
+        (signal): Promise<Order> => createOrder({ 'sku': 'demo-widget', 'quantity': 1 }, signal),
         async (created): Promise<void> => { await cancelOrder(created.id); }
     );
 

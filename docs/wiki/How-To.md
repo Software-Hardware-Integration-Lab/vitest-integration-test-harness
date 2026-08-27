@@ -39,15 +39,9 @@ try {
 }
 
 // After
-let widget!: Widget;
-
-await resources.track(
+const widget = await resources.track(
     'example widget',
-    async (): Promise<Widget> => {
-        widget = await createWidget('example');
-
-        return widget;
-    },
+    (): Promise<Widget> => createWidget('example'),
     async (created): Promise<void> => { await deleteWidget(created.id); }
 );
 

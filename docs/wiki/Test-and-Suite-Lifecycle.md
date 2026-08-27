@@ -33,15 +33,9 @@ import { createWidget, deleteWidget, restoreWidgetDefaults, getWidget } from './
 const test = integrationSuite({
     'name': 'widget suite state',
     'setup': async ({ resources }) => {
-        let widget!: Widget;
-
-        await resources.track(
+        const widget = await resources.track(
             'shared widget',
-            async (): Promise<Widget> => {
-                widget = await createWidget('shared-widget');
-
-                return widget;
-            },
+            (): Promise<Widget> => createWidget('shared-widget'),
             async (created): Promise<void> => { await deleteWidget(created.id); }
         );
 

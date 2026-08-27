@@ -7,40 +7,22 @@ An integration test that creates something has to delete it again, including on 
 `track` takes a description, a setup function that creates the resource, and a cleanup function that receives whatever setup returned.
 
 ```ts no-check
-await resources.track(
+const widget = await resources.track(
     'example widget',
     (): Promise<Widget> => createWidget('example'),
-    async (widget): Promise<void> => { await deleteWidget(widget.id); }
-);
-```
-
-Setup runs immediately, and cleanup is registered the instant it succeeds. There is no window in which the widget exists and its undo does not. That is why creation lives inside the call rather than on the line above it: a create followed by a separate register leaves exactly one line where a throw leaks, and no amount of discipline closes a gap the API left open.
-
-The description is for a person reading a failure. It appears in both setup and cleanup failure messages, so `Widget ${ id }` earns its extra characters over `widget`.
-
-Cleanup runs after the test whether it passed or failed. You never call it.
-
-## Getting at what you created
-
-`track` resolves to an internal key rather than to the resource. When the test body needs what setup produced, capture it in the closure:
-
-```ts no-check
-let widget!: Widget;
-
-await resources.track(
-    'example widget',
-    async (): Promise<Widget> => {
-        widget = await createWidget('example');
-
-        return widget;
-    },
     async (created): Promise<void> => { await deleteWidget(created.id); }
 );
 
 expect(await getWidget(widget.id)).toEqual(widget);
 ```
 
-Setup still has to return the resource, because that return value is what gets handed to cleanup later.
+Setup runs immediately, and cleanup is registered the instant it succeeds. There is no window in which the widget exists and its undo does not. That is why creation lives inside the call rather than on the line above it: a create followed by a separate register leaves exactly one line where a throw leaks, and no amount of discipline closes a gap the API left open.
+
+Whatever setup returns comes back out of `track`, so the test body reads as if you had called `createWidget` directly. The same value is handed to cleanup later, which is why setup has to return the resource rather than just create it.
+
+The description is for a person reading a failure. It appears in both setup and cleanup failure messages, so `Widget ${ id }` earns its extra characters over `widget`.
+
+Cleanup runs after the test whether it passed or failed. You never call it.
 
 ## Every test has to declare
 
@@ -131,6 +113,8 @@ const tracker = new ResourceTracker('my fixture', externalSignal);
 ```
 
 The name appears in failure messages. The optional second argument is an `AbortSignal` of your own: aborting it stops further setups exactly as an internal setup failure would, which is how you cancel provisioning when something outside the tracker has already gone wrong. A signal that is already aborted when the tracker is constructed makes the first `track` call fail without running anything.
+
+Pair an external signal with `detachAbortSignal()` once the fixture lifecycle is over. It removes the listener the constructor attached and does nothing else: no cleanup, no cancellation of tracked setups. Skipping it leaves the tracker reachable from a signal that may outlive it, which is a leak rather than a correctness problem, but a long-lived signal shared across many trackers accumulates them.
 
 Two other methods are worth knowing. `getTrackedDescriptions()` returns a snapshot of what is still outstanding, which is useful to record into diagnostics. `registerCleanup(description, cleanup)` adds a cleanup that takes no argument and has no setup, for undoing something the tracker did not create; it deliberately does not count as a declaration, so a fixture using it still leaves the test to say what it did.
 

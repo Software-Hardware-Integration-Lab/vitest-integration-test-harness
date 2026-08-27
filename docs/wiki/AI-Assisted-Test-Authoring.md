@@ -36,7 +36,7 @@ These tests use `@software-hardware-integration-lab/vitest-integration-test-harn
 
 - Create every resource through `await resources.track(description, setup, cleanup)`. Never create it with a bare call and register cleanup afterward, and never use a `try`/`finally` block.
 - `setup` receives an `AbortSignal` and returns the resource. `cleanup` receives exactly what `setup` returned.
-- `track` resolves to an internal key, not to the resource. When the test body needs the resource, assign it to a variable inside `setup` and return it.
+- `track` resolves to whatever `setup` returned, so write it as `const widget = await resources.track(...)` when the test body needs the resource.
 - Forward the `signal` argument to any client call that accepts one.
 - Every test must declare. Call `track`, or call `resources.markNoResources()` for a test that creates and modifies nothing. A test that does neither fails after its body passes.
 - Never call both in the same run. `track` after `markNoResources()` throws, and so does the reverse.

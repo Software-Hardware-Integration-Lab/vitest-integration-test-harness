@@ -136,15 +136,9 @@ import { deleteBlob, readBlob, uploadTestBlob, type Blob } from './support/blobC
 const test = blobContainer.integrationTest;
 
 test('uploads and reads back a blob', async ({ resources }) => {
-    let blob!: Blob;
-
-    await resources.track(
+    const blob = await resources.track(
         'test blob',
-        async (signal): Promise<Blob> => {
-            blob = await uploadTestBlob('hello', signal);
-
-            return blob;
-        },
+        (signal): Promise<Blob> => uploadTestBlob('hello', signal),
         async (uploaded): Promise<void> => { await deleteBlob(uploaded.name); }
     );
 

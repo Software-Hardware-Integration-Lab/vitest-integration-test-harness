@@ -59,12 +59,13 @@ Both functions return `EnvironmentReadiness`. `evaluateEnvironmentVariables` is 
 
 | Method | Purpose |
 | --- | --- |
-| `track(description, setup, cleanup)` | Runs `setup(signal)`, registers `cleanup` with its result once setup succeeds, and counts as the tracker's declaration. Async. Resolves to an internal key, not to the resource. |
+| `track(description, setup, cleanup)` | Runs `setup(signal)`, registers `cleanup` with its result once setup succeeds, and counts as the tracker's declaration. Async, resolving to whatever `setup` returned. |
 | `markNoResources()` | Declares that this run creates and modifies nothing. Mutually exclusive with `track`. |
 | `registerCleanup(description, cleanup)` | Registers a zero-argument cleanup with no setup. Does not satisfy the declaration. |
 | `assertDeclared()` | Throws unless `track` or `markNoResources()` was called. The lifecycle calls this for you. |
 | `cleanupAll()` | Runs every registered cleanup in LIFO order. Async. |
 | `getTrackedDescriptions()` | Snapshot of the descriptions still awaiting cleanup, in registration order. |
+| `detachAbortSignal()` | Removes the listener attached to an external `AbortSignal` passed to the constructor. Runs no cleanup and cancels nothing. |
 
 `cleanupAll()` never aborts early. Resources whose cleanup failed remain tracked and are retried by a later call; successful ones are removed.
 

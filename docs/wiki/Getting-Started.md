@@ -18,15 +18,9 @@ import { integrationTest } from '@software-hardware-integration-lab/vitest-integ
 import { createWidget, deleteWidget, getWidget, type Widget } from './support/widgetClient.js';
 
 integrationTest('creates and reads a widget', async ({ resources }) => {
-    let widget!: Widget;
-
-    await resources.track(
+    const widget = await resources.track(
         'example widget',
-        async (): Promise<Widget> => {
-            widget = await createWidget('example');
-
-            return widget;
-        },
+        (): Promise<Widget> => createWidget('example'),
         async (created): Promise<void> => { await deleteWidget(created.id); }
     );
 
@@ -38,7 +32,7 @@ That runs immediately. There is no setup file to write and no configuration to a
 
 The `resources.track` call is the shape that matters. Creating the widget happens *inside* the tracker rather than before it, which is what guarantees the widget gets deleted even when the `expect` below it throws. Registering cleanup separately, after the create, leaves one line where a failure leaks. That one line is the most common way integration suites leak resources.
 
-The third argument receives whatever the second one returned, which is why setup has to return the resource. The test body gets at it through the closure, since `track` itself resolves to an internal key.
+The third argument receives whatever the second one returned, which is why setup has to return the resource rather than just create it. That same value comes back out of `track`, so the line reads like an ordinary `await createWidget(...)` and the cleanup comes along for free.
 
 ## Say what your test does
 
