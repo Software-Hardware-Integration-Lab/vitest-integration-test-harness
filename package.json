@@ -1,6 +1,6 @@
 {
     "name": "@software-hardware-integration-lab/vitest-integration-test-harness",
-    "version": "0.0.1-alpha1",
+    "version": "0.0.2-alpha1",
     "description": "Test harness built on top of vitest for creating integration tests with predictable setup and teardown behavior",
     "main": "bin/src/index.js",
     "type": "module",
