@@ -1,10 +1,14 @@
 import { spawnSync, type SpawnSyncReturns } from 'node:child_process';
 import { type TestContext, afterEach, describe, expect, it, vi } from 'vitest';
 import DiagnosticsRecorder from '../src/harness/base/private/diagnostics/diagnostics.js';
+import { TrackedResource } from '../src/harness/base/private/resource/trackedResource.js';
+import { runSuiteLifecycle } from '../src/harness/base/public/integration/integrationSuite.js';
+import { runResourceTrackingLifecycle } from '../src/harness/base/public/integration/integrationTestLifecycle.js';
 import {
     evaluateReadiness,
     integrationTest,
     ResourceCleanupError,
+    ResourceSetupError,
     type EnvironmentReadiness,
     ResourceTracker, type FailureDiagnosticsPayload
 } from '../src/index.js';
@@ -88,6 +92,76 @@ void describe('evaluateReadiness', () => {
 });
 
 void describe('ResourceTracker', () => {
+    it('returns the setup result and supplies it to cleanup', async () => {
+        const tracker = new ResourceTracker('unit-test');
+
+        const widget = { 'id': 'widget-1' };
+
+        const cleanup = vi.fn();
+
+        const result = await tracker.track('widget', (): Promise<typeof widget> => Promise.resolve(widget), cleanup);
+
+        expect(result).toBe(widget);
+
+        await tracker.cleanupAll();
+
+        expect(cleanup).toHaveBeenCalledExactlyOnceWith(widget);
+    });
+
+    it('throws ResourceSetupError when setup fails and preserves prior resources for cleanup', async () => {
+        const tracker = new ResourceTracker('unit-test');
+
+        const cleanup = vi.fn();
+
+        await tracker.track('first', (): Promise<object> => Promise.resolve({}), cleanup);
+
+        try {
+            await tracker.track('second', (): Promise<object> => Promise.reject(new Error('setup boom')), cleanup);
+
+            expect.unreachable('Resource setup should have failed.');
+        } catch (error) {
+            expect(error).toBeInstanceOf(ResourceSetupError);
+
+            const setupError = error as ResourceSetupError;
+
+            expect(setupError.failures).toHaveLength(1);
+
+            expect(setupError.failures[0]?.description).toBe('second');
+
+            expect(setupError.failures[0]?.error).toBeInstanceOf(Error);
+
+            expect((setupError.failures[0]?.error as Error).message).toBe('setup boom');
+        }
+
+        expect(tracker.getTrackedDescriptions()).toEqual(['first']);
+
+        await tracker.cleanupAll();
+
+        expect(cleanup).toHaveBeenCalledOnce();
+    });
+
+    it('aborts later setup after a setup failure', async () => {
+        const tracker = new ResourceTracker('unit-test');
+
+        await expect(tracker.track(
+            'first',
+            (): Promise<object> => Promise.reject(new Error('setup boom')),
+            () => { /* No-op cleanup */ }
+        )).rejects.toBeInstanceOf(ResourceSetupError);
+
+        await expect(tracker.track(
+            'second',
+            // eslint-disable-next-line stylistic/no-confusing-arrow
+            (signal): Promise<object> => signal.aborted
+                ? Promise.reject(new Error('setup aborted'))
+                : Promise.resolve({}),
+            () => { /* No-op cleanup */ }
+        )).rejects.toMatchObject({
+            'name': 'ResourceSetupError',
+            'failures': [{ 'description': 'second' }]
+        });
+    });
+
     it('cleans up tracked resources in reverse (LIFO) order', async () => {
         /** Tracker under test, scoped to a fake test name since this exercises the class directly. */
         const tracker = new ResourceTracker('unit-test');
@@ -95,9 +169,9 @@ void describe('ResourceTracker', () => {
         /** Records the order cleanup callbacks actually ran in. */
         const order: string[] = [];
 
-        tracker.track('first', () => { order.push('first'); });
+        await tracker.track('first', (): Promise<object> => Promise.resolve({}), () => { order.push('first'); });
 
-        tracker.track('second', () => { order.push('second'); });
+        await tracker.track('second', (): Promise<object> => Promise.resolve({}), () => { order.push('second'); });
 
         await tracker.cleanupAll();
 
@@ -111,9 +185,9 @@ void describe('ResourceTracker', () => {
         /** Spy proving the second cleanup still runs despite the first one throwing. */
         const secondCleanup = vi.fn();
 
-        tracker.track('will fail', () => { throw new Error('cleanup boom'); });
+        await tracker.track('will fail', (): Promise<object> => Promise.resolve({}), () => { throw new Error('cleanup boom'); });
 
-        tracker.track('will still run', secondCleanup);
+        await tracker.track('will still run', (): Promise<object> => Promise.resolve({}), secondCleanup);
 
         await expect(tracker.cleanupAll()).rejects.toThrow(ResourceCleanupError);
 
@@ -124,7 +198,7 @@ void describe('ResourceTracker', () => {
         /** Tracker under test, scoped to a fake test name since this exercises the class directly. */
         const tracker = new ResourceTracker('unit-test');
 
-        tracker.track('will fail', () => { throw new Error('cleanup boom'); });
+        await tracker.track('will fail', (): Promise<object> => Promise.resolve({}), () => { throw new Error('cleanup boom'); });
 
         try {
             await tracker.cleanupAll();
@@ -192,13 +266,13 @@ void describe('ResourceTracker', () => {
         expect(error.message).toContain('second resource: 500');
     });
 
-    it('exposes descriptions of resources still tracked', () => {
+    it('exposes descriptions of resources still tracked', async () => {
         /** Tracker under test, scoped to a fake test name since this exercises the class directly. */
         const tracker = new ResourceTracker('unit-test');
 
-        tracker.track('alpha', () => { /* No-op cleanup */ });
+        await tracker.track('alpha', (): Promise<object> => Promise.resolve({}), () => { /* No-op cleanup */ });
 
-        tracker.track('beta', () => { /* No-op cleanup */ });
+        await tracker.track('beta', (): Promise<object> => Promise.resolve({}), () => { /* No-op cleanup */ });
 
         expect(tracker.getTrackedDescriptions()).toEqual(['alpha', 'beta']);
     });
@@ -210,7 +284,7 @@ void describe('ResourceTracker', () => {
         /** Counts cleanup attempts to simulate a transient eventual-consistency failure. */
         let attempts = 0;
 
-        tracker.track('eventually consistent resource', () => {
+        await tracker.track('eventually consistent resource', (): Promise<object> => Promise.resolve({}), () => {
             attempts += 1;
 
             if (attempts === 1) {
@@ -227,6 +301,338 @@ void describe('ResourceTracker', () => {
         expect(attempts).toBe(2);
 
         expect(tracker.getTrackedDescriptions()).toEqual([]);
+    });
+
+    it('immediately fails setup when constructed with an already-aborted external signal', async () => {
+        const controller = new AbortController();
+
+        controller.abort(new Error('external abort'));
+
+        const tracker = new ResourceTracker('unit-test', controller.signal);
+
+        await expect(tracker.track(
+            'first',
+            (): Promise<object> => Promise.resolve({}),
+            () => { /* No-op cleanup */ }
+        )).rejects.toBeInstanceOf(ResourceSetupError);
+    });
+
+    it('wraps a non-Error abort reason in a new Error when setup is already aborted', async () => {
+        const controller = new AbortController();
+
+        controller.abort('non-error abort reason');
+
+        const tracker = new ResourceTracker('unit-test', controller.signal);
+
+        try {
+            await tracker.track('first', (): Promise<object> => Promise.resolve({}), () => { /* No-op cleanup */ });
+
+            expect.unreachable('Resource setup should have failed.');
+        } catch (error) {
+            expect(error).toBeInstanceOf(ResourceSetupError);
+
+            const setupError = error as ResourceSetupError;
+
+            expect(setupError.failures[0]?.error).toBeInstanceOf(Error);
+
+            expect((setupError.failures[0]?.error as Error).message).toBe('Resource setup was aborted.');
+
+            expect((setupError.failures[0]?.error as Error).cause).toBe('non-error abort reason');
+        }
+    });
+
+    it('propagates a later external abort signal to in-flight setup', async () => {
+        const controller = new AbortController();
+
+        const tracker = new ResourceTracker('unit-test', controller.signal);
+
+        /** Setup that only rejects once the tracker's internal signal is aborted. */
+        const trackPromise = tracker.track(
+            'first',
+            (signal): Promise<object> => new Promise((_resolve, reject) => {
+                signal.addEventListener('abort', () => { reject(new Error('setup aborted')); }, { 'once': true });
+            }),
+            () => { /* No-op cleanup */ }
+        );
+
+        controller.abort(new Error('external abort arrived later'));
+
+        await expect(trackPromise).rejects.toBeInstanceOf(ResourceSetupError);
+    });
+
+    it('does not propagate an external abort after detachAbortSignal', async () => {
+        const controller = new AbortController();
+
+        const tracker = new ResourceTracker('unit-test', controller.signal);
+
+        tracker.detachAbortSignal();
+
+        controller.abort(new Error('external abort after detachAbortSignal'));
+
+        await expect(tracker.track(
+            'first',
+            (): Promise<object> => Promise.resolve({}),
+            () => { /* No-op cleanup */ }
+        )).resolves.toEqual({});
+    });
+
+    it('throws when track() is called after markNoResources()', async () => {
+        const tracker = new ResourceTracker('unit-test');
+
+        tracker.markNoResources();
+
+        await expect(tracker.track(
+            'late resource',
+            (): Promise<object> => Promise.resolve({}),
+            () => { /* No-op cleanup */ }
+        )).rejects.toThrow(/after markNoResources\(\) was called/u);
+    });
+
+    it('assertDeclared throws when neither track() nor markNoResources() was called', () => {
+        const tracker = new ResourceTracker('unit-test');
+
+        expect(() => { tracker.assertDeclared(); }).toThrow(/must call/u);
+    });
+
+    it('assertDeclared does not throw after markNoResources()', () => {
+        const tracker = new ResourceTracker('unit-test');
+
+        tracker.markNoResources();
+
+        expect(() => { tracker.assertDeclared(); }).not.toThrow();
+    });
+
+    it('throws when markNoResources() is called after resources have been tracked', async () => {
+        const tracker = new ResourceTracker('unit-test');
+
+        await tracker.track('first', (): Promise<object> => Promise.resolve({}), () => { /* No-op cleanup */ });
+
+        expect(() => { tracker.markNoResources(); }).toThrow(/Cannot call markNoResources/u);
+    });
+
+    it('registerCleanup adds harness-owned cleanup without satisfying the declaration', async () => {
+        const tracker = new ResourceTracker('unit-test');
+
+        const cleanup = vi.fn();
+
+        tracker.registerCleanup('harness-owned cleanup', cleanup);
+
+        expect(() => { tracker.assertDeclared(); }).toThrow(/must call/u);
+
+        await tracker.cleanupAll();
+
+        expect(cleanup).toHaveBeenCalledOnce();
+    });
+});
+
+void describe('TrackedResource', () => {
+    it('starts with no setup result or errors', () => {
+        const resource = new TrackedResource<object>('a resource', () => { /* No-op cleanup */ });
+
+        expect(resource.description).toBe('a resource');
+
+        expect(resource.setupResult).toBeUndefined();
+
+        expect(resource.setupError).toBeUndefined();
+
+        expect(resource.cleanupError).toBeUndefined();
+    });
+
+    it('stores and retrieves a setup result', () => {
+        const resource = new TrackedResource<{ 'value': number }>('a resource', () => { /* No-op cleanup */ });
+
+        resource.setupResult = { 'value': 42 };
+
+        expect(resource.setupResult).toEqual({ 'value': 42 });
+    });
+
+    it('stores and retrieves a setup error once', () => {
+        const resource = new TrackedResource<object>('a resource', () => { /* No-op cleanup */ });
+
+        const failure = {
+            'description': 'a resource',
+            'error': new Error('setup boom')
+        };
+
+        resource.setupError = failure;
+
+        expect(resource.setupError).toBe(failure);
+    });
+
+    it('throws when setupError is set a second time', () => {
+        const resource = new TrackedResource<object>('a resource', () => { /* No-op cleanup */ });
+
+        resource.setupError = {
+            'description': 'a resource',
+            'error': new Error('first')
+        };
+
+        expect(() => {
+            resource.setupError = {
+                'description': 'a resource',
+                'error': new Error('second')
+            };
+        }).toThrow(/setupError for 'a resource' because it has already been set/u);
+    });
+
+    it('stores and retrieves a cleanup error once', () => {
+        const resource = new TrackedResource<object>('a resource', () => { /* No-op cleanup */ });
+
+        const failure = {
+            'description': 'a resource',
+            'error': new Error('cleanup boom')
+        };
+
+        resource.cleanupError = failure;
+
+        expect(resource.cleanupError).toBe(failure);
+    });
+
+    it('throws when cleanupError is set a second time', () => {
+        const resource = new TrackedResource<object>('a resource', () => { /* No-op cleanup */ });
+
+        resource.cleanupError = {
+            'description': 'a resource',
+            'error': new Error('first')
+        };
+
+        expect(() => {
+            resource.cleanupError = {
+                'description': 'a resource',
+                'error': new Error('second')
+            };
+        }).toThrow(/cleanupError for 'a resource' because it has already been set/u);
+    });
+});
+
+void describe('runResourceTrackingLifecycle', () => {
+    it('runs cleanup and returns normally when the test body declares no resources', async () => {
+        await expect(runResourceTrackingLifecycle('unit-test', (tracker) => {
+            tracker.markNoResources();
+
+            return Promise.resolve();
+        })).resolves.toBeUndefined();
+    });
+
+    it('throws only the test body failure when cleanup succeeds', async () => {
+        const cleanup = vi.fn();
+
+        await expect(runResourceTrackingLifecycle('unit-test', async (tracker) => {
+            await tracker.track('resource', (): Promise<object> => Promise.resolve({}), cleanup);
+
+            throw new Error('test body failed');
+        })).rejects.toThrow('test body failed');
+
+        expect(cleanup).toHaveBeenCalledOnce();
+    });
+
+    it('throws only the cleanup failure when the test body succeeds', async () => {
+        await expect(runResourceTrackingLifecycle('unit-test', async (tracker) => {
+            await tracker.track('resource', (): Promise<object> => Promise.resolve({}), () => {
+                throw new Error('cleanup failed');
+            });
+        })).rejects.toThrow(ResourceCleanupError);
+    });
+
+    it('throws an AggregateError when the test body and cleanup both fail', async () => {
+        await expect(runResourceTrackingLifecycle('unit-test', async (tracker) => {
+            await tracker.track('resource', (): Promise<object> => Promise.resolve({}), () => {
+                throw new Error('cleanup failed');
+            });
+
+            throw new Error('test body failed');
+        })).rejects.toBeInstanceOf(AggregateError);
+    });
+
+    it('throws when the test body succeeds but never declares resources', async () => {
+        await expect(runResourceTrackingLifecycle('unit-test', () => Promise.resolve()))
+            .rejects.toThrow(/must call/u);
+    });
+
+    it('wraps a non-Error test body failure in a new Error', async () => {
+        // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors -- Exercises the non-Error wrapping branch.
+        await expect(runResourceTrackingLifecycle('unit-test', () => Promise.reject('non-error failure')))
+            .rejects.toThrow('non-error failure');
+    });
+});
+
+void describe('runSuiteLifecycle', () => {
+    function noopSetup(): () => void {
+        return (): void => { /* No-op cleanup */ };
+    }
+
+    it('skips setup and cleanup entirely when the environment is not ready', async () => {
+        const use = vi.fn(() => Promise.resolve());
+
+        await runSuiteLifecycle({
+            'name': 'unready suite',
+            'setup': noopSetup
+        }, false, use);
+
+        expect(use).toHaveBeenCalledOnce();
+    });
+
+    it('runs the file\'s tests after setup succeeds and declares no resources', async () => {
+        const use = vi.fn(() => Promise.resolve());
+
+        await runSuiteLifecycle({
+            'name': 'ready suite',
+            'setup': ({ resources }): () => void => {
+                resources.markNoResources();
+
+                return (): void => { /* No-op cleanup */ };
+            }
+        }, true, use);
+
+        expect(use).toHaveBeenCalledOnce();
+    });
+
+    it('throws only the setup failure when no resources were tracked', async () => {
+        await expect(runSuiteLifecycle({
+            'name': 'failing setup',
+            'setup': (): never => { throw new Error('setup failed'); }
+        }, true, () => Promise.resolve())).rejects.toThrow('setup failed');
+    });
+
+    it('wraps a non-Error setup failure in a new Error', async () => {
+        await expect(runSuiteLifecycle({
+            'name': 'failing setup with non-error reason',
+            // eslint-disable-next-line @typescript-eslint/only-throw-error -- Exercises the non-Error wrapping branch.
+            'setup': (): never => { throw 'non-error setup failure'; }
+        }, true, () => Promise.resolve())).rejects.toThrow('non-error setup failure');
+    });
+
+    it('throws when setup succeeds but never declares resources', async () => {
+        await expect(runSuiteLifecycle({
+            'name': 'undeclared setup',
+            'setup': (): () => void => (): void => { /* No-op cleanup */ }
+        }, true, () => Promise.resolve())).rejects.toThrow(/must call/u);
+    });
+
+    it('throws only the cleanup failure when setup succeeds', async () => {
+        await expect(runSuiteLifecycle({
+            'name': 'failing cleanup',
+            'setup': async ({ resources }): Promise<() => void> => {
+                await resources.track('suite resource', (): Promise<object> => Promise.resolve({}), () => {
+                    throw new Error('cleanup failed');
+                });
+
+                return (): void => { /* No-op cleanup */ };
+            }
+        }, true, () => Promise.resolve())).rejects.toThrow(ResourceCleanupError);
+    });
+
+    it('throws an AggregateError when setup and cleanup both fail', async () => {
+        await expect(runSuiteLifecycle({
+            'name': 'failing setup and cleanup',
+            'setup': async ({ resources }): Promise<never> => {
+                await resources.track('suite resource', (): Promise<object> => Promise.resolve({}), () => {
+                    throw new Error('cleanup failed');
+                });
+
+                throw new Error('setup failed');
+            }
+        }, true, () => Promise.resolve())).rejects.toBeInstanceOf(AggregateError);
     });
 });
 
@@ -258,10 +664,14 @@ void describe('DiagnosticsRecorder', () => {
 
         expect(consoleSpy).toHaveBeenCalledOnce();
 
-        /** Second argument passed to the `console.error` call, containing the structured diagnostic payload. */
-        const [, payload] = consoleSpy.mock.calls[0] as [string, FailureDiagnosticsPayload];
+        /** Rendered failure detail passed to `console.error`. */
+        const [renderedDiagnostics] = consoleSpy.mock.calls[0] as [string];
 
-        expect(payload.failureMessages).toEqual(['expected failure']);
+        expect(renderedDiagnostics).toContain('expected failure');
+
+        expect(renderedDiagnostics).toContain('label: \'note\'');
+
+        expect(renderedDiagnostics).toContain('detail: 42');
     });
 
     it('emits an empty failure message list when Vitest reports no errors', () => {
@@ -524,17 +934,13 @@ void describe('DiagnosticsRecorder', () => {
 
         recorder.flush({ 'task': { 'result': { 'errors': [] } } } as unknown as TestContext);
 
-        expect(consoleSpy).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({
-            'recordedContext': [
-                {
-                    'label': 'response',
-                    'detail': {
-                        'serviceCredential': '[REDACTED]',
-                        'sideEffect': '[Accessor diagnostic value]'
-                    }
-                }
-            ]
-        }));
+        const [renderedDiagnostics] = consoleSpy.mock.calls[0] as [string];
+
+        expect(renderedDiagnostics).toContain('label: \'response\'');
+
+        expect(renderedDiagnostics).toContain('serviceCredential: \'[REDACTED]\'');
+
+        expect(renderedDiagnostics).toContain('sideEffect: \'[Accessor diagnostic value]\'');
     });
 
     it('represents Error, non-plain, array, and circular diagnostic values safely', () => {
@@ -602,16 +1008,18 @@ void describe('integration lifecycle wiring (real fixtures)', () => {
     /** Records the order the real `resources` fixture actually ran cleanup callbacks in, across tests below. */
     const cleanupOrder: string[] = [];
 
-    integrationTest('tracks resources through the real fixture and defers cleanup until after the test', ({ resources }) => {
-        resources.track('outer', () => { cleanupOrder.push('outer'); });
+    integrationTest('tracks resources through the real fixture and defers cleanup until after the test', async ({ resources }) => {
+        await resources.track('outer', (): Promise<object> => Promise.resolve({}), () => { cleanupOrder.push('outer'); });
 
-        resources.track('inner', () => { cleanupOrder.push('inner'); });
+        await resources.track('inner', (): Promise<object> => Promise.resolve({}), () => { cleanupOrder.push('inner'); });
 
         // Cleanup is only registered here - it must not have run yet.
         expect(cleanupOrder).toEqual([]);
     });
 
-    integrationTest('previous test\'s resources were already cleaned up in LIFO order by the time this test runs', () => {
+    integrationTest('previous test\'s resources were already cleaned up in LIFO order by the time this test runs', ({ resources }) => {
+        resources.markNoResources();
+
         expect(cleanupOrder).toEqual(['inner', 'outer']);
     });
 });
@@ -833,5 +1241,29 @@ void describe('Failure Snapshot', () => {
         expect(output).toContain('fixture resource');
 
         expect(output).toContain('expected cleanup failure');
+    });
+
+    it('reports a plain suite setup failure when cleanup does not also fail', () => {
+        const fixturePath = 'test/fixtures/suite-setup-only-failure.fixture.ts';
+
+        const { status, output } = runFixtureAndCaptureOutput(fixturePath);
+
+        expect(status).not.toBe(0);
+
+        expect(output).toContain('suite setup only failure');
+
+        expect(output).not.toContain('test body should not run');
+    });
+
+    it('fails the suite when setup does not declare resources or markNoResources()', () => {
+        const fixturePath = 'test/fixtures/suite-missing-declaration.fixture.ts';
+
+        const { status, output } = runFixtureAndCaptureOutput(fixturePath);
+
+        expect(status).not.toBe(0);
+
+        expect(output).toContain('must call');
+
+        expect(output).not.toContain('test body should not run');
     });
 });

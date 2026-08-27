@@ -1,4 +1,5 @@
-import { afterAll, describe, expect, it, vi } from 'vitest';import {
+import { afterAll, describe, expect, it, vi } from 'vitest';
+import {
     createEnvironmentProfile,
     evaluateEnvironmentVariables,
     evaluateReadiness,
@@ -423,7 +424,7 @@ void describe('evaluateReadiness', () => {
 });
 
 void describe('createEnvironmentProfile', () => {
-    it('returns test, suite, and immutable profile metadata', () => {
+    it('returns integrationTest, integrationSuite, and immutable profile metadata', () => {
         const profileDefinition: EnvironmentProfile = {
             'name': 'database-integration',
             'dependencyType': 'Database',
@@ -434,9 +435,9 @@ void describe('createEnvironmentProfile', () => {
 
         const result = createEnvironmentProfile(profileDefinition);
 
-        expect(typeof result.test).toBe('function');
+        expect(typeof result.integrationTest).toBe('function');
 
-        expect(typeof result.suite).toBe('function');
+        expect(typeof result.integrationSuite).toBe('function');
 
         expect(result.profile.name).toBe('database-integration');
 
@@ -604,26 +605,26 @@ const readyLifecycleProfile = createEnvironmentProfile<{
     }
 });
 
-readyLifecycleProfile.test('executes test and provides custom fixtures and resource tracking', ({
+readyLifecycleProfile.integrationTest('executes test and provides custom fixtures and resource tracking', ({
     customGreeting,
     resources,
     diagnostics
 }) => {
     expect(customGreeting).toBe('hello-from-profile');
 
-    expect(typeof resources.track).toBe('function');
+    resources.markNoResources();
 
     expect(typeof diagnostics.record).toBe('function');
 });
 
 const suiteOrder: string[] = [];
 
-const profileSuiteTest = readyLifecycleProfile.suite({
+const profileSuiteTest = readyLifecycleProfile.integrationSuite({
     'name': 'profile-suite-sample',
-    'setup': ({ resources }): () => void => {
+    'setup': async ({ resources }): Promise<() => void> => {
         suiteOrder.push('profile-suite-setup');
 
-        resources.track('suite-resource', () => {
+        await resources.track('suite-resource', (): Promise<object> => Promise.resolve({}), () => {
             suiteOrder.push('profile-suite-cleanup');
         });
 
@@ -633,7 +634,9 @@ const profileSuiteTest = readyLifecycleProfile.suite({
     }
 });
 
-profileSuiteTest('runs profile suite lifecycle with custom fixtures', ({ customGreeting }) => {
+profileSuiteTest('runs profile suite lifecycle with custom fixtures', ({ customGreeting, resources }) => {
+    resources.markNoResources();
+
     expect(customGreeting).toBe('hello-from-profile');
 
     expect(suiteOrder).toEqual(['profile-suite-setup']);
@@ -660,7 +663,7 @@ const unreadyProfileWithChecks = createEnvironmentProfile({
     ]
 });
 
-unreadyProfileWithChecks.test('skips test when required environment variables are missing', () => {
+unreadyProfileWithChecks.integrationTest('skips test when required environment variables are missing', () => {
     expect.unreachable('Test should be skipped by readinessGate due to missing env vars');
 });
 
@@ -680,7 +683,7 @@ const unreadyCheckProfile = createEnvironmentProfile({
     ]
 });
 
-unreadyCheckProfile.test('skips test when readiness check fails', () => {
+unreadyCheckProfile.integrationTest('skips test when readiness check fails', () => {
     expect.unreachable('Test should be skipped by readinessGate due to failing check');
 });
 
@@ -698,7 +701,7 @@ const throwingCheckProfile = createEnvironmentProfile({
     ]
 });
 
-throwingCheckProfile.test('skips test when readiness check throws an error', () => {
+throwingCheckProfile.integrationTest('skips test when readiness check throws an error', () => {
     expect.unreachable('Test should be skipped by readinessGate due to throwing check');
 });
 
@@ -709,7 +712,9 @@ const minimalProfile = createEnvironmentProfile({
     'readinessChecks': []
 });
 
-minimalProfile.test('runs successfully with minimal profile configuration', ({ environment }) => {
+minimalProfile.integrationTest('runs successfully with minimal profile configuration', ({ environment, resources }) => {
+    resources.markNoResources();
+
     expect(environment.ready).toBe(true);
 
     expect(environment.reason).toBeUndefined();
@@ -729,7 +734,7 @@ const unreadySuiteProfile = createEnvironmentProfile({
     ]
 });
 
-const unreadySuiteTest = unreadySuiteProfile.suite({
+const unreadySuiteTest = unreadySuiteProfile.integrationSuite({
     'name': 'unready-suite-should-skip',
     'setup': unreadySuiteSetupSpy
 });

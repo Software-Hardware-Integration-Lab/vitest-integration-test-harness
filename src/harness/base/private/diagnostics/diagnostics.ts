@@ -1,5 +1,6 @@
 /* eslint-disable no-console -- Diagnostic output is the entire purpose of this module; only ever emitted on test failure. */
 import type { TestContext } from 'vitest';
+import { inspect } from 'node:util';
 import type {
     DiagnosticEntry,
     DiagnosticRedactionRule,
@@ -177,7 +178,13 @@ export default class DiagnosticsRecorder {
             }))
         };
 
-        console.error(`\n[Integration Test Failure Diagnostics] ${ this.#testName }`, payload);
+        console.error(`\n[Integration Test Failure Diagnostics] ${ this.#testName }\n${ inspect(payload, {
+            'breakLength': 120,
+            'compact': false,
+            'depth': 8,
+            'maxArrayLength': 100,
+            'maxStringLength': 8_000
+        }) }`);
 
         for (const reporter of this.#reporters) {
             try {

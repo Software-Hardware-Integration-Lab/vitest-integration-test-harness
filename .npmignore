@@ -1,6 +1,7 @@
 # Project files, only the built runtime files should be published
 /src
 /test
+/sample
 bin/test
 **/vitest.config.{d.ts,js,ts}
 .vscode

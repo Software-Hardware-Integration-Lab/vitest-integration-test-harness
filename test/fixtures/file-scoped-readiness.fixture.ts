@@ -19,10 +19,14 @@ const test = integrationTest.extend({
     ]
 });
 
-test('initializes readiness for the first test', () => {
+test('initializes readiness for the first test', ({ resources }) => {
+    resources.markNoResources();
+
     expect(readinessInitializations).toBe(1);
 });
 
-test('reuses file-scoped readiness for the second test', () => {
+test('reuses file-scoped readiness for the second test', ({ resources }) => {
+    resources.markNoResources();
+
     expect(readinessInitializations).toBe(1);
 });

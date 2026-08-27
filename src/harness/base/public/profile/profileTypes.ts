@@ -60,16 +60,18 @@ export interface EnvironmentProfile<TFixtures extends object = object> {
     'fixtures'?: ProfileFixtures<TFixtures>;
     /** Consumer-defined classification tags. */
     'tags'?: readonly string[];
+    /** Optional scope for the profile's fixtures. Defaults to `file` scope. */
+    'scope'?: 'file' | 'test' | 'worker';
 }
 
 /**
- * Result returned by `createEnvironmentProfile` containing preconfigured test and suite APIs and profile metadata.
+ * Result returned by `createEnvironmentProfile` containing preconfigured integration test and suite APIs and profile metadata.
  */
 export interface EnvironmentProfileResult<TFixtures extends object = object> {
-    /** Configured test API with profile readiness and custom fixtures. */
-    'test': TestAPI<IntegrationTestFixtures & TFixtures>;
-    /** Suite factory creating file-scoped lifecycles with profile readiness and custom fixtures. */
-    'suite': (options: IntegrationSuiteOptions) => TestAPI<IntegrationTestFixtures & TFixtures>;
+    /** Configured integration test API with profile readiness and custom fixtures. */
+    'integrationTest': TestAPI<IntegrationTestFixtures & TFixtures>;
+    /** Integration suite factory creating file-scoped lifecycles with profile readiness and custom fixtures. */
+    'integrationSuite': (options: IntegrationSuiteOptions) => TestAPI<IntegrationTestFixtures & TFixtures>;
     /**
      * Readonly profile metadata snapshot. Fixture definitions retain their original mutable reference because Vitest
      * annotates them while extending the test API.

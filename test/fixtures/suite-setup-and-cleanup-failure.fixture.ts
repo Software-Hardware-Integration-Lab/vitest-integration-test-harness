@@ -2,8 +2,8 @@ import { integrationSuite } from '../../src/index.js';
 
 const test = integrationSuite({
     'name': 'failing suite setup',
-    'setup': ({ resources }): never => {
-        resources.track('partially created suite resource', () => {
+    'setup': async ({ resources }): Promise<never> => {
+        await resources.track('partially created suite resource', (): Promise<object> => Promise.resolve({}), () => {
             throw new Error('suite cleanup failed');
         });
 

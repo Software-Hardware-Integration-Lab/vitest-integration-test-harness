@@ -51,9 +51,11 @@ export { createEnvironmentProfile } from './harness/base/public/profile/createEn
 // #region Resource
 export { default as ResourceCleanupError } from './harness/base/public/resource/errors/resourceCleanupError.js';
 
+export { default as ResourceSetupError } from './harness/base/public/resource/errors/resourceSetupError.js';
+
 export { default as ResourceTracker } from './harness/base/public/resource/resourceTracker.js';
 
-export type { ResourceCleanupFailure } from './harness/base/public/resource/resourceTypes.js';
+export type { ResourceFailure as ResourceCleanupFailure } from './harness/base/public/resource/resourceTypes.js';
 // #endregion Resource
 
 // #region Profile
@@ -71,4 +73,3 @@ export type {
 export type { PollResult, RetryOptions } from './utilities/public/retry/retryTypes.js';
 
 // #endregion Utilities
-

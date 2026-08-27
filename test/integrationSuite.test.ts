@@ -10,10 +10,10 @@ const suiteLifecycleOrder: string[] = [];
 
 const suiteTest = integrationSuite({
     'name': 'in-process suite lifecycle',
-    'setup': ({ resources }): () => void => {
+    'setup': async ({ resources }): Promise<() => void> => {
         suiteLifecycleOrder.push('setup');
 
-        resources.track('additional suite state', () => {
+        await resources.track('additional suite state', (): Promise<object> => Promise.resolve({}), () => {
             suiteLifecycleOrder.push('additional cleanup');
         });
 
@@ -23,7 +23,9 @@ const suiteTest = integrationSuite({
     }
 });
 
-suiteTest('runs suite setup before the test body and tracks resources', () => {
+suiteTest('runs suite setup before the test body and tracks resources', ({ resources }) => {
+    resources.markNoResources();
+
     expect(suiteLifecycleOrder).toEqual(['setup']);
 });
 
@@ -44,8 +46,10 @@ const customSuiteOrder: string[] = [];
 
 const directSuiteTest = createSuiteRunner(customBaseTest, {
     'name': 'direct-suite-runner',
-    'setup': (): () => void => {
+    'setup': ({ resources }): () => void => {
         customSuiteOrder.push('setup');
+
+        resources.markNoResources();
 
         return (): void => {
             customSuiteOrder.push('cleanup');
@@ -53,7 +57,9 @@ const directSuiteTest = createSuiteRunner(customBaseTest, {
     }
 });
 
-directSuiteTest('runs suite with custom integration base test runner', ({ customService }) => {
+directSuiteTest('runs suite with custom integration base test runner', ({ customService, resources }) => {
+    resources.markNoResources();
+
     expect(customService.ping()).toBe('pong');
 
     expect(customSuiteOrder).toEqual(['setup']);
